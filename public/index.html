@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Showreel</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="app">
+      <header class="app__header">
+        <h1>Showreel</h1>
+        <p class="app__sub">Turn a long Vault video into a page trailer or social clips.</p>
+        <p class="badge" id="credits">…</p>
+      </header>
+
+      <section id="install" class="panel" hidden>
+        <h2>Connect your Vault</h2>
+        <p>Showreel needs read and write access to your media to pull source videos and put finished clips back.</p>
+        <a class="button" href="/auth/start">Connect Fanvue</a>
+        <p class="note" id="install-note"></p>
+      </section>
+
+      <section id="workspace" class="panel" hidden>
+        <div class="controls">
+          <label>
+            Output
+            <select id="preset">
+              <option value="showreel">Showreel (page trailer)</option>
+              <option value="social">Social teasers</option>
+              <option value="recap">Subscriber recap</option>
+            </select>
+          </label>
+          <fieldset class="ratios">
+            <legend>Aspect ratios</legend>
+            <label><input type="checkbox" value="9:16" checked /> 9:16</label>
+            <label><input type="checkbox" value="1:1" /> 1:1</label>
+            <label><input type="checkbox" value="16:9" /> 16:9</label>
+          </fieldset>
+          <label class="captions"><input type="checkbox" id="captions" checked /> Captions</label>
+          <button class="button button--ghost" id="buy">Buy 30 more minutes</button>
+        </div>
+
+        <h2>Your videos</h2>
+        <ul class="media" id="media"></ul>
+
+        <h2>Renders</h2>
+        <ul class="jobs" id="jobs"></ul>
+      </section>
+
+      <p class="status" id="status" role="status"></p>
+    </main>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,9 @@
+node_modules/
+data/*
+!data/.gitkeep
+tmp/*
+!tmp/.gitkeep
+.env
+.env.local
+*.log
+docs/api-verification-run.md

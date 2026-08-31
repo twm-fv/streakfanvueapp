@@ -1,0 +1,63 @@
+:root {
+  color-scheme: light dark;
+  --bg: #ffffff;
+  --fg: #16161a;
+  --muted: #6b6b76;
+  --line: #e4e4ea;
+  --accent: #4c3bcf;
+  --warn: #8a5a00;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #16161a;
+    --fg: #f2f2f5;
+    --muted: #a0a0ad;
+    --line: #2c2c34;
+    --accent: #9d92ff;
+    --warn: #e0b062;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.app { max-width: 760px; margin: 0 auto; padding: 24px 20px 48px; }
+.app__header h1 { margin: 0; font-size: 22px; }
+.app__sub { margin: 4px 0 12px; color: var(--muted); }
+
+.badge {
+  display: inline-block; margin: 0 0 20px; padding: 4px 10px;
+  border: 1px solid var(--line); border-radius: 999px; font-size: 13px; color: var(--muted);
+}
+
+.panel { border-top: 1px solid var(--line); padding-top: 20px; }
+h2 { font-size: 15px; margin: 24px 0 10px; }
+
+.controls { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
+.controls label { font-size: 13px; color: var(--muted); display: flex; gap: 6px; align-items: center; }
+select { font: inherit; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); }
+.ratios { border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px 8px; display: flex; gap: 10px; }
+.ratios legend { font-size: 12px; color: var(--muted); }
+
+.button {
+  display: inline-block; padding: 8px 14px; border: 0; border-radius: 8px;
+  background: var(--accent); color: #fff; font: inherit; text-decoration: none; cursor: pointer;
+}
+.button--ghost { background: transparent; color: var(--accent); border: 1px solid var(--line); }
+
+.media, .jobs { list-style: none; margin: 0; padding: 0; }
+.media li, .jobs li {
+  display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between;
+  padding: 12px 0; border-bottom: 1px solid var(--line);
+}
+.media__meta, .jobs__meta { color: var(--muted); font-size: 13px; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+.blocked { color: var(--warn); }
+.note, .status { color: var(--muted); font-size: 13px; }
