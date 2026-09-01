@@ -44,8 +44,14 @@ export function NudgeCard({
               You usually post on <b>{dayNames}</b>. Want a reminder around{" "}
               <b>{String(nudge.hour).padStart(2, "0")}:00</b> on those days?
             </>
+          ) : nudge.enabled ? (
+            // Never tell someone to turn on a switch they have already turned on.
+            <>
+              Reminders are on. Once you have more posting history, Streak will suggest the days
+              that suit you.
+            </>
           ) : (
-            <>Turn on a reminder once you have a bit more posting history.</>
+            <>A daily reminder, once there is enough history to suggest the right days.</>
           )}
         </div>
         <button

@@ -159,19 +159,22 @@ export function analyse(input: EngineInput) {
   }
 
   // --- comeback tracker --------------------------------------------------
-  // A "break" is a run of inactive days that the creator came back from. Runs
-  // still open at the end of the window are not comebacks yet, so they do not
-  // count towards the average.
+  // A comeback means the creator actually posted again, so this counts real
+  // posts only. A freeze covers a day; it is not a return to posting, and
+  // treating it as one invents breaks and comebacks that never happened.
+  //
+  // A run still open at the end of the window has not been come back from yet,
+  // so it does not count towards the average.
   const past = input.days.filter((d) => daysBetween(d.date, today) >= 0);
   const gaps: number[] = [];
   let gap = 0;
-  let seenActive = false;
+  let seenPost = false;
   for (const day of past) {
-    if (isActive(day.date)) {
-      if (gap > 0 && seenActive) gaps.push(gap);
+    if (day.posts > 0) {
+      if (gap > 0 && seenPost) gaps.push(gap);
       gap = 0;
-      seenActive = true;
-    } else if (seenActive) {
+      seenPost = true;
+    } else if (seenPost) {
       gap++;
     }
   }
@@ -181,6 +184,7 @@ export function analyse(input: EngineInput) {
       ? Math.round((gaps.reduce((a, b) => a + b, 0) / gaps.length) * 10) / 10
       : null,
     sameDayOrNextDay: gaps.filter((g) => g <= 1).length,
+    longestBreak: gaps.length ? Math.max(...gaps) : null,
   };
 
   // --- posting cadence --------------------------------------------------
@@ -198,20 +202,28 @@ export function analyse(input: EngineInput) {
   const thisMonth = monthOf(today);
   const usedThisMonth = frozenDates.filter((d) => monthOf(d) === thisMonth).length;
   /**
-   * A freeze covers the day that would otherwise break an existing run, so a day
-   * is only offered when the day before it is already active. That keeps a
-   * freeze doing the one job it has - protecting a streak - and stops it
-   * inventing one out of an empty account. Longer gaps are still coverable:
-   * freezing the earliest day makes the next one eligible in turn.
+   * The gap is the unbroken run of missed days between the last active day and
+   * today. Covering part of it achieves nothing - the streak stays broken - so
+   * a freeze is offered only for the whole gap, and only when it reconnects to
+   * a genuinely active day. That is the one thing a freeze is for.
+   *
+   * Bounded to a week so a freeze protects a live habit rather than reviving a
+   * streak abandoned months ago.
    */
-  const eligibleDates: string[] = [];
-  for (let i = 6; i >= 0; i--) {
-    const date = addDays(today, -i);
-    if (!byDate.has(date)) continue;
-    if (postsOn(date) > 0 || frozen.has(date)) continue;
-    if (!isActive(addDays(date, -1))) continue;
-    eligibleDates.push(date);
+  const MAX_GAP_DAYS = 7;
+  const gapDates: string[] = [];
+  {
+    let cursor = today;
+    while (!isActive(cursor) && gapDates.length < MAX_GAP_DAYS && byDate.has(cursor)) {
+      gapDates.push(cursor);
+      cursor = addDays(cursor, -1);
+    }
+    // The day before the gap has to be active, or there is no streak to save.
+    if (!isActive(cursor) || postsOn(cursor) === 0) gapDates.length = 0;
   }
+  const available = Math.max(0, MAX_FREEZES_PER_MONTH - usedThisMonth);
+  const gapLength = gapDates.length;
+  const coverDates = gapLength > 0 && gapLength <= available ? gapDates : [];
 
   // --- bests ------------------------------------------------------------
   const bestEarningsDay = past
@@ -249,9 +261,12 @@ export function analyse(input: EngineInput) {
     cadence: { topDays, topDayNames: topDays.map((d) => WEEKDAY_NAMES[d]) },
     freezes: {
       used: usedThisMonth,
-      available: Math.max(0, MAX_FREEZES_PER_MONTH - usedThisMonth),
+      available,
       allowance: MAX_FREEZES_PER_MONTH,
-      eligibleDates,
+      /** The whole gap, when it is affordable. Empty otherwise. */
+      coverDates,
+      /** The gap regardless of affordability, so the UI can explain the cost. */
+      gapLength,
     },
     bests,
     badges,

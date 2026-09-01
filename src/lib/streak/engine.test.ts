@@ -123,38 +123,60 @@ describe("freezes", () => {
     expect(r.freezes.available).toBe(2);
   });
 
-  it("offers only the day that would break the run", () => {
-    // Posted on the 12th and 13th, missed the 14th, nothing yet today.
-    const days = window(TODAY, 30, { "2026-03-12": 1, "2026-03-13": 1 });
+  it("offers the whole gap between the last post and today", () => {
+    // Posted on the 12th, then missed the 13th and 14th; nothing today either.
+    const days = window(TODAY, 30, { "2026-03-12": 1 });
     const r = analyse({ days, frozenDates: [], today: TODAY, unlockedBadges: [] });
-    // The 14th continues the run. Today is not offered yet: the 14th is still a
-    // break, so freezing today would protect nothing.
-    expect(r.freezes.eligibleDates).toEqual(["2026-03-14"]);
+    expect(r.freezes.gapLength).toBe(3);
+    expect(r.freezes.coverDates).toEqual(["2026-03-15", "2026-03-14", "2026-03-13"]);
   });
 
-  it("offers the next day once the gap before it is covered", () => {
-    const days = window(TODAY, 30, { "2026-03-12": 1, "2026-03-13": 1 });
+  it("offers nothing when the gap costs more freezes than are left", () => {
+    const days = window(TODAY, 30, { "2026-03-12": 1 });
     const r = analyse({
       days,
-      frozenDates: ["2026-03-14"],
+      // Two already spent this month leaves one, but the gap needs three.
+      frozenDates: ["2026-03-05", "2026-03-06"],
       today: TODAY,
       unlockedBadges: [],
     });
-    expect(r.freezes.eligibleDates).toEqual([TODAY]);
-    expect(r.currentStreak).toBe(3);
+    expect(r.freezes.gapLength).toBe(3);
+    expect(r.freezes.available).toBe(1);
+    expect(r.freezes.coverDates).toEqual([]);
   });
 
-  it("offers nothing on an account with no posts at all", () => {
+  it("offers nothing while the streak is intact", () => {
+    const days = window(TODAY, 30, { "2026-03-14": 1, "2026-03-15": 1 });
+    const r = analyse({ days, frozenDates: [], today: TODAY, unlockedBadges: [] });
+    expect(r.freezes.gapLength).toBe(0);
+    expect(r.freezes.coverDates).toEqual([]);
+  });
+
+  it("offers nothing on an account that has never posted", () => {
     const days = window(TODAY, 30, {});
     const r = analyse({ days, frozenDates: [], today: TODAY, unlockedBadges: [] });
-    expect(r.freezes.eligibleDates).toEqual([]);
+    expect(r.freezes.gapLength).toBe(0);
+    expect(r.freezes.coverDates).toEqual([]);
+  });
+
+  it("does not treat an earlier freeze as something to build on", () => {
+    // A freeze was spent, but nothing was ever posted, so there is no streak
+    // for another freeze to protect.
+    const days = window(TODAY, 30, {});
+    const r = analyse({
+      days,
+      frozenDates: ["2026-03-13"],
+      today: TODAY,
+      unlockedBadges: [],
+    });
+    expect(r.freezes.coverDates).toEqual([]);
+    expect(r.currentStreak).toBe(0);
   });
 
   it("never lets a freeze manufacture a streak from nothing", () => {
     const days = window(TODAY, 30, {});
     const r = analyse({
       days,
-      // Even with freezes stored, no real post means no streak.
       frozenDates: [TODAY, "2026-03-14"],
       today: TODAY,
       unlockedBadges: [],
@@ -165,6 +187,20 @@ describe("freezes", () => {
 });
 
 describe("comeback tracker", () => {
+  it("counts no breaks on an account that has only ever used freezes", () => {
+    const days = window(TODAY, 20, {});
+    const r = analyse({
+      days,
+      frozenDates: ["2026-03-05", "2026-03-08"],
+      today: TODAY,
+      unlockedBadges: [],
+    });
+    // A freeze is not a return to posting, so it invents neither a break nor a
+    // comeback.
+    expect(r.comeback.breaks).toBe(0);
+    expect(r.comeback.averageDaysToReturn).toBeNull();
+  });
+
   it("averages closed gaps only and ignores an open one", () => {
     const days = window(TODAY, 20, {
       "2026-02-28": 1,

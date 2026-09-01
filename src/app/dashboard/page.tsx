@@ -161,10 +161,25 @@ export default async function Dashboard() {
 
         <div className="card">
           <h2>Comeback tracker</h2>
-          {comeback.averageDaysToReturn === null ? (
+          {comeback.breaks === 0 ? (
             <p className="muted-line">
-              No breaks in this window. Nothing to come back from yet.
+              No breaks to come back from yet. Once you have missed a day and returned, this shows
+              how quickly you got going again.
             </p>
+          ) : comeback.breaks === 1 ? (
+            // One break is not an average, so state the single fact instead.
+            <>
+              <div className="comeback-stat">
+                <span className="n">
+                  {comeback.longestBreak} day{comeback.longestBreak === 1 ? "" : "s"}
+                </span>
+                <span className="muted-line">off before you posted again</span>
+              </div>
+              <div className="muted-line">
+                One break so far. Come back from a few more and this becomes a average worth
+                watching.
+              </div>
+            </>
           ) : (
             <>
               <div className="comeback-stat">
