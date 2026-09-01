@@ -27,7 +27,8 @@ export default async function Dashboard() {
   const viewer = await getViewer();
   if (!viewer) redirect("/");
 
-  const { summary, state, warnings, earningsAvailable, currency } = await buildDashboard(viewer);
+  const { summary, state, warnings, earningsAvailable, currency, postsFound } =
+    await buildDashboard(viewer);
   const money = (amount: number) => formatMoney(amount, currency);
   const { correlation, comeback, bests } = summary;
 
@@ -81,6 +82,15 @@ export default async function Dashboard() {
         <div className="card full">
           <h2>Posting activity (last {env.HISTORY_DAYS} days, {state.timezone})</h2>
           <Heatmap weeks={summary.weeks} />
+          {postsFound === 0 && warnings.length === 0 && (
+            // An empty grid on its own is ambiguous. Say plainly that Fanvue
+            // reported nothing, so a new creator is not left wondering whether
+            // the app is broken.
+            <p className="muted-line" style={{ marginTop: 12 }}>
+              Fanvue has no posts on this account in the last {env.HISTORY_DAYS} days. Post once and
+              your streak starts here.
+            </p>
+          )}
         </div>
 
         <div className="card">

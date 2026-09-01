@@ -58,13 +58,19 @@ export function analyse(input: EngineInput) {
   else if (isActive(addDays(today, -1))) anchor = addDays(today, -1);
 
   let currentStreak = 0;
+  let streakHasRealPost = false;
   if (anchor) {
     for (let d = anchor; isActive(d); d = addDays(d, -1)) {
       currentStreak++;
+      if (postsOn(d) > 0) streakHasRealPost = true;
       // Stop at the edge of the fetched window rather than counting phantom days.
       if (!byDate.has(addDays(d, -1))) break;
     }
   }
+  // A freeze protects a streak; it cannot manufacture one. Without a single real
+  // post behind it, a run of frozen days is not a streak and must not be shown
+  // as though the creator had posted.
+  if (!streakHasRealPost) currentStreak = 0;
   const atRisk = !todayActive && currentStreak > 0;
 
   // --- longest streak in the window -------------------------------------
@@ -191,12 +197,20 @@ export function analyse(input: EngineInput) {
   // --- freezes ----------------------------------------------------------
   const thisMonth = monthOf(today);
   const usedThisMonth = frozenDates.filter((d) => monthOf(d) === thisMonth).length;
-  // A freeze can only repair a recent miss, never invent history far back.
-  const eligibleDates = [];
-  for (let i = 0; i <= 6; i++) {
+  /**
+   * A freeze covers the day that would otherwise break an existing run, so a day
+   * is only offered when the day before it is already active. That keeps a
+   * freeze doing the one job it has - protecting a streak - and stops it
+   * inventing one out of an empty account. Longer gaps are still coverable:
+   * freezing the earliest day makes the next one eligible in turn.
+   */
+  const eligibleDates: string[] = [];
+  for (let i = 6; i >= 0; i--) {
     const date = addDays(today, -i);
     if (!byDate.has(date)) continue;
-    if (postsOn(date) === 0 && !frozen.has(date)) eligibleDates.push(date);
+    if (postsOn(date) > 0 || frozen.has(date)) continue;
+    if (!isActive(addDays(date, -1))) continue;
+    eligibleDates.push(date);
   }
 
   // --- bests ------------------------------------------------------------

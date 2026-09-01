@@ -107,9 +107,21 @@ export class FanvueSource implements ActivitySource {
     const start = addDays(today, -(historyDays - 1));
 
     const counts = new Map<string, number>();
+    let postsSeen = 0;
+    let postsDated = 0;
     if (hasScope(this.grantedScopes, SCOPE_POSTS)) {
       try {
-        await this.collectPosts({ start, timezone, counts });
+        const tally = await this.collectPosts({ start, timezone, counts });
+        postsSeen = tally.seen;
+        postsDated = tally.dated;
+        // An empty heatmap has two very different causes: an account with
+        // nothing posted yet, and posts we failed to read. Say which.
+        if (postsSeen > 0 && postsDated === 0) {
+          warnings.push(
+            `Fanvue returned ${postsSeen} post${postsSeen === 1 ? "" : "s"}, but none carried a ` +
+              `publication date in a field Streak recognises, so the streak cannot be counted.`,
+          );
+        }
       } catch (error) {
         warnings.push(describeFailure(error, "your posts", SCOPE_POSTS));
       }
@@ -140,7 +152,13 @@ export class FanvueSource implements ActivitySource {
       earnings: earnings ? (earnings.get(date) ?? 0) : null,
     }));
 
-    return { days, earningsAvailable: earnings !== null, currency, warnings };
+    return {
+      days,
+      earningsAvailable: earnings !== null,
+      currency,
+      postsFound: postsSeen,
+      warnings,
+    };
   }
 
   /** Walks pages newest-first and stops as soon as it passes the window start. */
@@ -152,9 +170,11 @@ export class FanvueSource implements ActivitySource {
     start: string;
     timezone: string;
     counts: Map<string, number>;
-  }): Promise<void> {
+  }): Promise<{ seen: number; dated: number }> {
     let cursor: string | null = null;
     let page = 1;
+    let seen = 0;
+    let dated = 0;
 
     for (let i = 0; i < MAX_PAGES; i++) {
       const payload = await this.client.get<unknown>(env.API_POSTS_PATH, {
@@ -162,16 +182,18 @@ export class FanvueSource implements ActivitySource {
         ...(cursor ? { cursor } : { page }),
       });
       const items = extractList(payload);
-      if (items.length === 0) return;
+      if (items.length === 0) return { seen, dated };
 
       let inWindow = 0;
       let older = 0;
       for (const item of items) {
         if (!item || typeof item !== "object") continue;
+        seen++;
         const iso = pickString(item as Record<string, unknown>, POST_DATE_KEYS);
         if (!iso) continue;
         const instant = new Date(iso);
         if (Number.isNaN(instant.getTime())) continue;
+        dated++;
 
         const date = toLocalDate(instant, timezone);
         if (date < start) {
@@ -186,15 +208,16 @@ export class FanvueSource implements ActivitySource {
       // years old, so a single out-of-window post near the top must not end the
       // walk - that would silently truncate the whole history. Only a page with
       // nothing in the window means we are genuinely past it.
-      if (inWindow === 0 && older > 0) return;
+      if (inWindow === 0 && older > 0) return { seen, dated };
       cursor = extractNextCursor(payload);
       page += 1;
       // Page-based responses say outright whether more pages exist; only fall
       // back to inferring from a short page when they do not.
       const more = hasMorePages(payload);
-      if (more === false) return;
-      if (more === null && !cursor && items.length < PAGE_SIZE) return;
+      if (more === false) return { seen, dated };
+      if (more === null && !cursor && items.length < PAGE_SIZE) return { seen, dated };
     }
+    return { seen, dated };
   }
 
   /**

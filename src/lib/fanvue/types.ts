@@ -24,6 +24,8 @@ export type ActivityWindow = {
   earningsAvailable: boolean;
   /** ISO code from the earnings rows. Creators are not all paid in USD. */
   currency: string;
+  /** Posts the API returned at all, before date parsing. Zero means an empty account. */
+  postsFound: number;
   /** Anything the app asked for but could not read, surfaced in the UI rather than hidden. */
   warnings: string[];
 };

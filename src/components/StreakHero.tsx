@@ -17,6 +17,14 @@ export function StreakHero({ currentStreak, message, atRisk, freezes }: Props) {
   const [error, setError] = useState<string | null>(null);
 
   const canFreeze = freezes.available > 0 && freezes.eligibleDates.length > 0;
+  const single = freezes.eligibleDates.length === 1;
+
+  /** Says why the button is unavailable, rather than leaving it inert. */
+  function idleLabel() {
+    if (freezes.available === 0) return "No freezes left this month";
+    if (currentStreak === 0) return "Freezes protect an active streak";
+    return "Streak safe, nothing to cover";
+  }
 
   async function useFreeze() {
     setError(null);
@@ -55,26 +63,36 @@ export function StreakHero({ currentStreak, message, atRisk, freezes }: Props) {
 
         {canFreeze ? (
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", flexWrap: "wrap" }}>
-            <select
-              value={selected}
-              onChange={(e) => setSelected(e.target.value)}
-              aria-label="Day to freeze"
-            >
-              {freezes.eligibleDates.map((d) => (
-                <option key={d} value={d}>
-                  {d}
-                </option>
-              ))}
-            </select>
+            {/* With one day to cover the picker is just noise, so only show it
+                when a longer gap gives a real choice. */}
+            {!single && (
+              <select
+                value={selected}
+                onChange={(e) => setSelected(e.target.value)}
+                aria-label="Day to cover with a freeze"
+              >
+                {freezes.eligibleDates.map((d) => (
+                  <option key={d} value={d}>
+                    {d}
+                  </option>
+                ))}
+              </select>
+            )}
             <button className="btn-ghost" onClick={useFreeze} disabled={pending}>
-              {pending ? "Applying…" : "Use a streak freeze"}
+              {pending ? "Applying…" : single ? `Cover ${selected}` : "Use a streak freeze"}
             </button>
           </div>
         ) : (
           <button className="btn-ghost" disabled>
-            {freezes.available === 0 ? "No freezes left this month" : "Nothing to freeze"}
+            {idleLabel()}
           </button>
         )}
+
+        <p className="muted-line" style={{ marginTop: 8, fontSize: 12, maxWidth: 260 }}>
+          {canFreeze
+            ? "Covers a day you missed so your streak carries on. It does not count as a post."
+            : "Three freezes a month, each covering one missed day in an active streak."}
+        </p>
 
         {error && (
           <p className="muted-line" style={{ color: "#b3261e", marginTop: 8 }}>

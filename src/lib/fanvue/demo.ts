@@ -74,6 +74,12 @@ export class DemoSource implements ActivitySource {
       return { date, posts, earnings };
     });
 
-    return { days, earningsAvailable: true, currency: "USD", warnings: [] };
+    return {
+      days,
+      earningsAvailable: true,
+      currency: "USD",
+      postsFound: days.reduce((sum, d) => sum + d.posts, 0),
+      warnings: [],
+    };
   }
 }

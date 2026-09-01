@@ -70,6 +70,7 @@ export type DashboardData = {
   warnings: string[];
   earningsAvailable: boolean;
   currency: string;
+  postsFound: number;
   today: string;
 };
 
@@ -108,6 +109,7 @@ export async function buildDashboard(viewer: Viewer): Promise<DashboardData> {
     warnings: window.warnings,
     earningsAvailable: window.earningsAvailable,
     currency: window.currency,
+    postsFound: window.postsFound,
     today,
   };
 }

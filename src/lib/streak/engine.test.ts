@@ -123,16 +123,44 @@ describe("freezes", () => {
     expect(r.freezes.available).toBe(2);
   });
 
-  it("only offers missed days inside the last week", () => {
-    const days = window(TODAY, 30, { "2026-03-15": 1, "2026-03-14": 1 });
+  it("offers only the day that would break the run", () => {
+    // Posted on the 12th and 13th, missed the 14th, nothing yet today.
+    const days = window(TODAY, 30, { "2026-03-12": 1, "2026-03-13": 1 });
     const r = analyse({ days, frozenDates: [], today: TODAY, unlockedBadges: [] });
-    expect(r.freezes.eligibleDates).toEqual([
-      "2026-03-13",
-      "2026-03-12",
-      "2026-03-11",
-      "2026-03-10",
-      "2026-03-09",
-    ]);
+    // The 14th continues the run. Today is not offered yet: the 14th is still a
+    // break, so freezing today would protect nothing.
+    expect(r.freezes.eligibleDates).toEqual(["2026-03-14"]);
+  });
+
+  it("offers the next day once the gap before it is covered", () => {
+    const days = window(TODAY, 30, { "2026-03-12": 1, "2026-03-13": 1 });
+    const r = analyse({
+      days,
+      frozenDates: ["2026-03-14"],
+      today: TODAY,
+      unlockedBadges: [],
+    });
+    expect(r.freezes.eligibleDates).toEqual([TODAY]);
+    expect(r.currentStreak).toBe(3);
+  });
+
+  it("offers nothing on an account with no posts at all", () => {
+    const days = window(TODAY, 30, {});
+    const r = analyse({ days, frozenDates: [], today: TODAY, unlockedBadges: [] });
+    expect(r.freezes.eligibleDates).toEqual([]);
+  });
+
+  it("never lets a freeze manufacture a streak from nothing", () => {
+    const days = window(TODAY, 30, {});
+    const r = analyse({
+      days,
+      // Even with freezes stored, no real post means no streak.
+      frozenDates: [TODAY, "2026-03-14"],
+      today: TODAY,
+      unlockedBadges: [],
+    });
+    expect(r.currentStreak).toBe(0);
+    expect(r.message).toContain("No active streak");
   });
 });
 

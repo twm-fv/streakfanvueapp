@@ -205,6 +205,27 @@ describe("earnings collection", () => {
   });
 });
 
+describe("empty versus unreadable", () => {
+  it("reports zero posts found when the account is genuinely empty", async () => {
+    const { client } = fakeClient(() => ({ data: [] }));
+    const window = await new FanvueSource("token", SCOPES, client).getActivity(30, TZ);
+    expect(window.postsFound).toBe(0);
+    expect(window.warnings.join(" ")).not.toContain("publication date");
+  });
+
+  it("warns when posts come back but none carry a readable date", async () => {
+    const { client } = fakeClient((path) => {
+      if (!path.includes("posts")) return { data: [] };
+      // Posts exist, but under a date field name we do not recognise.
+      return { data: [{ uuid: "a", somethingElse: "2026-08-30T10:00:00Z" }] };
+    });
+
+    const window = await new FanvueSource("token", SCOPES, client).getActivity(30, TZ);
+    expect(window.postsFound).toBe(1);
+    expect(window.warnings.join(" ")).toContain("publication date");
+  });
+});
+
 describe("page-based pagination", () => {
   it("keeps going while pagination.hasMore is true", async () => {
     const today = todayIn(TZ);
