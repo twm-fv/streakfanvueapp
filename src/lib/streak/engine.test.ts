@@ -112,7 +112,13 @@ describe("longest streak", () => {
 
 describe("freezes", () => {
   it("counts only the current calendar month against the allowance", () => {
-    const days = window(TODAY, 60, { "2026-03-15": 1 });
+    // Each freeze needs a real post behind it to count at all, so the fixture
+    // gives every chain something to bridge from.
+    const days = window(TODAY, 60, {
+      "2026-02-09": 1,
+      "2026-03-01": 1,
+      "2026-03-15": 1,
+    });
     const r = analyse({
       days,
       frozenDates: ["2026-02-10", "2026-02-11", "2026-03-02"],
@@ -132,10 +138,11 @@ describe("freezes", () => {
   });
 
   it("offers nothing when the gap costs more freezes than are left", () => {
-    const days = window(TODAY, 30, { "2026-03-12": 1 });
+    const days = window(TODAY, 30, { "2026-03-04": 1, "2026-03-12": 1 });
     const r = analyse({
       days,
       // Two already spent this month leaves one, but the gap needs three.
+      // The post on the 4th is what makes those two freezes count.
       frozenDates: ["2026-03-05", "2026-03-06"],
       today: TODAY,
       unlockedBadges: [],
@@ -157,6 +164,35 @@ describe("freezes", () => {
     const r = analyse({ days, frozenDates: [], today: TODAY, unlockedBadges: [] });
     expect(r.freezes.gapLength).toBe(0);
     expect(r.freezes.coverDates).toEqual([]);
+  });
+
+  it("ignores a freeze that never bridged a real post", () => {
+    // Nothing was ever posted, so the freeze protected nothing. It should not
+    // be drawn on the heatmap, and should not be charged.
+    const days = window(TODAY, 30, {});
+    const r = analyse({
+      days,
+      frozenDates: ["2026-03-10", "2026-03-11"],
+      today: TODAY,
+      unlockedBadges: [],
+    });
+    expect(r.weeks.flat().some((c) => c.frozen)).toBe(false);
+    expect(r.freezes.used).toBe(0);
+    expect(r.freezes.available).toBe(3);
+  });
+
+  it("keeps a freeze that does bridge a real post", () => {
+    const days = window(TODAY, 30, { "2026-03-13": 1, "2026-03-15": 1 });
+    const r = analyse({
+      days,
+      frozenDates: ["2026-03-14"],
+      today: TODAY,
+      unlockedBadges: [],
+    });
+    const frozenCells = r.weeks.flat().filter((c) => c.frozen);
+    expect(frozenCells.map((c) => c.date)).toEqual(["2026-03-14"]);
+    expect(r.freezes.used).toBe(1);
+    expect(r.currentStreak).toBe(3);
   });
 
   it("does not treat an earlier freeze as something to build on", () => {

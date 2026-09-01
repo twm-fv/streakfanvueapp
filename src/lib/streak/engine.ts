@@ -42,10 +42,28 @@ function levelFor(posts: number): 0 | 1 | 2 | 3 {
 export function analyse(input: EngineInput) {
   const { today, frozenDates, unlockedBadges } = input;
   const longestStreakEver = input.longestStreakEver ?? 0;
-  const frozen = new Set(frozenDates);
   const byDate = new Map(input.days.map((d) => [d.date, d]));
 
   const postsOn = (date: string) => byDate.get(date)?.posts ?? 0;
+
+  /**
+   * A stored freeze only means something if it bridges back to a real post.
+   * Walking forward, a frozen day is effective when the day before it was
+   * posted on, or was itself an effective freeze, so every chain terminates in
+   * genuine activity.
+   *
+   * Anything else is inert: a freeze spent on an empty stretch protected no
+   * streak, so it is not drawn on the heatmap and is not charged against the
+   * monthly allowance. A creator is only billed for protection they received.
+   */
+  const stored = new Set(frozenDates);
+  const frozen = new Set<string>();
+  for (const day of input.days) {
+    if (!stored.has(day.date)) continue;
+    const previous = addDays(day.date, -1);
+    if (postsOn(previous) > 0 || frozen.has(previous)) frozen.add(day.date);
+  }
+
   const isActive = (date: string) => postsOn(date) > 0 || frozen.has(date);
 
   // --- current streak ---------------------------------------------------
@@ -200,7 +218,8 @@ export function analyse(input: EngineInput) {
 
   // --- freezes ----------------------------------------------------------
   const thisMonth = monthOf(today);
-  const usedThisMonth = frozenDates.filter((d) => monthOf(d) === thisMonth).length;
+  // Effective freezes only - see the note where `frozen` is built.
+  const usedThisMonth = [...frozen].filter((d) => monthOf(d) === thisMonth).length;
   /**
    * The gap is the unbroken run of missed days between the last active day and
    * today. Covering part of it achieves nothing - the streak stays broken - so
