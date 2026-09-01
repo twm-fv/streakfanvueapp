@@ -61,7 +61,9 @@ function describeFailure(error: unknown, what: string, scope: string): string {
     if (error.status === 403) {
       return `Streak is not authorised to read ${what}. Reconnect and grant the ${scope} permission.`;
     }
-    return `Could not read ${what} (the Fanvue API returned ${error.status}).`;
+    return error.detail
+      ? `Could not read ${what}: the Fanvue API rejected the request (${error.status}) - ${error.detail}`
+      : `Could not read ${what} (the Fanvue API returned ${error.status}).`;
   }
   return `Could not read ${what}.`;
 }
@@ -121,7 +123,7 @@ export class FanvueSource implements ActivitySource {
     let currency = "USD";
     if (hasScope(this.grantedScopes, SCOPE_INSIGHTS)) {
       try {
-        const collected = await this.collectEarnings(start, today);
+        const collected = await this.collectEarnings(start, today, timezone);
         earnings = collected.byDate;
         currency = collected.currency ?? currency;
         if (earnings.size === 0) {
@@ -206,6 +208,7 @@ export class FanvueSource implements ActivitySource {
   private async collectEarnings(
     start: string,
     end: string,
+    timezone: string,
   ): Promise<{ byDate: Map<string, number>; currency: string | null }> {
     const out = new Map<string, number>();
     let currency: string | null = null;
@@ -215,8 +218,10 @@ export class FanvueSource implements ActivitySource {
       const payload: unknown = await this.client.get<unknown>(
         env.API_INSIGHTS_EARNINGS_PATH,
         {
-          startDate: start,
-          endDate: end,
+          // These take an ISO 8601 datetime, not a bare date. A date-only value
+          // fails validation with a 400.
+          startDate: `${start}T00:00:00Z`,
+          endDate: `${end}T23:59:59Z`,
           size: PAGE_SIZE,
           ...(cursor ? { cursor } : {}),
         },
@@ -230,9 +235,13 @@ export class FanvueSource implements ActivitySource {
         const amount = pickNumber(row, EARNING_AMOUNT_KEYS);
         if (!rawDate || amount === null) continue;
         currency ??= pickString(row, ["currency"]);
+        // Bucket by the creator's own day, matching how posts are counted, so a
+        // week's earnings line up with the same week's posts.
+        const instant = new Date(rawDate);
+        if (Number.isNaN(instant.getTime())) continue;
+        const date = toLocalDate(instant, timezone);
         // Refunds and chargebacks arrive as their own negative rows, so a day
         // nets out on its own without special handling.
-        const date = rawDate.slice(0, 10);
         out.set(date, (out.get(date) ?? 0) + amount / MINOR_UNITS_PER_MAJOR);
       }
 

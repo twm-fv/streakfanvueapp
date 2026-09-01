@@ -139,6 +139,35 @@ describe("earnings collection", () => {
     expect(window.days.find((d) => d.date === today)?.earnings).toBeCloseTo(125, 2);
   });
 
+  it("sends ISO datetimes, since a bare date fails validation with a 400", async () => {
+    const { client, calls } = fakeClient(() => ({ data: [] }));
+    await new FanvueSource("token", SCOPES, client).getActivity(30, TZ);
+
+    const insights = calls.filter((c) => !c.path.includes("posts"));
+    expect(insights.length).toBeGreaterThan(0);
+    for (const call of insights) {
+      expect(String(call.query.startDate)).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/);
+      expect(String(call.query.endDate)).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/);
+    }
+  });
+
+  it("buckets earnings by the creator's day, not the UTC day", async () => {
+    // 23:30 UTC on the 4th is 09:30 on the 5th in Sydney.
+    const { client } = fakeClient((path) => {
+      if (path.includes("posts")) return { data: [] };
+      return {
+        data: [{ date: "2026-08-04T23:30:00Z", net: 5000, gross: 5000, currency: "AUD" }],
+        nextCursor: null,
+      };
+    });
+
+    const source = new FanvueSource("token", SCOPES, client);
+    const window = await source.getActivity(4000, "Australia/Sydney");
+    const byDate = new Map(window.days.map((d) => [d.date, d.earnings]));
+    expect(byDate.get("2026-08-05")).toBeCloseTo(50, 2);
+    expect(byDate.get("2026-08-04")).toBe(0);
+  });
+
   it("reports the currency the rows are denominated in", async () => {
     const today = todayIn(TZ);
     const { client } = fakeClient((path) => {

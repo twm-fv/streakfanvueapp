@@ -4,10 +4,36 @@ export class FanvueApiError extends Error {
   constructor(
     readonly status: number,
     readonly path: string,
+    /** Validation detail from the response, when the API supplied one. */
+    readonly detail?: string,
   ) {
-    super(`Fanvue API ${path} returned ${status}`);
+    super(`Fanvue API ${path} returned ${status}${detail ? `: ${detail}` : ""}`);
     this.name = "FanvueApiError";
   }
+}
+
+/**
+ * Pulls the reason out of an error body. A 400 says which parameter it did not
+ * like, which is the difference between a five-minute fix and an afternoon of
+ * guessing. Only the validation fields are read, never the whole body: other
+ * responses carry creator data that has no business in a log or a warning.
+ */
+async function readErrorDetail(res: Response): Promise<string | undefined> {
+  if (res.status !== 400 && res.status !== 422) return undefined;
+  try {
+    const body = (await res.json()) as Record<string, unknown>;
+    const errors = body.errors;
+    if (Array.isArray(errors) && errors.length) {
+      return errors.filter((e) => typeof e === "string").join("; ").slice(0, 300);
+    }
+    for (const key of ["message", "error"]) {
+      const value = body[key];
+      if (typeof value === "string" && value) return value.slice(0, 300);
+    }
+  } catch {
+    // A body that is not JSON tells us nothing useful.
+  }
+  return undefined;
 }
 
 const RETRYABLE = new Set([429, 500, 502, 503, 504]);
@@ -36,6 +62,7 @@ export class FanvueClient {
     }
 
     let lastStatus = 0;
+    let lastDetail: string | undefined;
     for (let attempt = 0; attempt < 4; attempt++) {
       const res = await fetch(url, {
         headers: {
@@ -52,10 +79,11 @@ export class FanvueClient {
       if (res.ok) return (await res.json()) as T;
 
       lastStatus = res.status;
+      lastDetail = await readErrorDetail(res);
       if (!RETRYABLE.has(res.status) || attempt === 3) break;
       await new Promise((r) => setTimeout(r, backoffMs(attempt, res.headers.get("retry-after"))));
     }
-    throw new FanvueApiError(lastStatus, path);
+    throw new FanvueApiError(lastStatus, path, lastDetail);
   }
 }
 
