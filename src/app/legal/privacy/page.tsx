@@ -1,6 +1,6 @@
 import { env } from "@/env";
 import { Footer } from "@/components/Footer";
-import { SCOPE_CREATOR, SCOPE_INSIGHTS, SCOPE_SELF } from "@/lib/fanvue/scopes";
+import { SCOPE_POSTS, SCOPE_INSIGHTS, SCOPE_SELF } from "@/lib/fanvue/scopes";
 
 export const metadata = { title: "Privacy — Streak" };
 
@@ -23,7 +23,7 @@ export default function Privacy() {
           <code>{SCOPE_SELF}</code> — your display name, avatar and timezone.
         </li>
         <li>
-          <code>{SCOPE_CREATOR}</code> — the publication timestamps of your posts. Streak counts how
+          <code>{SCOPE_POSTS}</code> — the publication timestamps of your posts. Streak counts how
           many posts fall on each day and discards the rest. It does not read captions, media,
           messages or anything about your subscribers.
         </li>

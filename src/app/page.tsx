@@ -2,7 +2,7 @@ import Link from "next/link";
 import { isDemoMode } from "@/env";
 import { getViewer } from "@/lib/app";
 import { Footer } from "@/components/Footer";
-import { SCOPE_CREATOR, SCOPE_INSIGHTS, SCOPE_SELF } from "@/lib/fanvue/scopes";
+import { SCOPE_POSTS, SCOPE_INSIGHTS, SCOPE_SELF } from "@/lib/fanvue/scopes";
 import { redirect } from "next/navigation";
 
 const ERRORS: Record<string, string> = {
@@ -93,7 +93,7 @@ export default async function Home({
             calendar day.
           </li>
           <li>
-            <code>{SCOPE_CREATOR}</code> — the dates your posts were published. Streak counts them.
+            <code>{SCOPE_POSTS}</code> — the dates your posts were published. Streak counts them.
             It does not read captions, media or messages.
           </li>
           <li>

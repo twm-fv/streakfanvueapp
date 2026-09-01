@@ -12,12 +12,12 @@ does: through OAuth, with scopes the creator approves and can revoke.
 
 | Panel | What it shows | Needs |
 | --- | --- | --- |
-| Streak counter | Consecutive posting days in the creator's own timezone, with three freezes per calendar month | `read:creator` |
-| Activity heatmap | Every day of the analysis window, Sunday-aligned | `read:creator` |
-| Personal bests | Longest streak, busiest week, biggest earning day, freezes used | `read:creator` |
-| Milestone badges | 7 / 30 / 100 / 365 days, with a downloadable share card | `read:creator` |
+| Streak counter | Consecutive posting days in the creator's own timezone, with three freezes per calendar month | `read:post` |
+| Activity heatmap | Every day of the analysis window, Sunday-aligned | `read:post` |
+| Personal bests | Longest streak, busiest week, biggest earning day, freezes used | `read:post` |
+| Milestone badges | 7 / 30 / 100 / 365 days, with a downloadable share card | `read:post` |
 | Consistency vs earnings | Weekly posts against weekly earnings, and the measured uplift | `read:insights` |
-| Comeback tracker | How fast the creator returns after a break | `read:creator` |
+| Comeback tracker | How fast the creator returns after a break | `read:post` |
 | Gentle nudge | Reminder preference, defaulted to their two busiest weekdays | — |
 
 Every panel degrades on its own. Decline `read:insights` and the earnings panel

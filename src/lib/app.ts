@@ -28,7 +28,7 @@ export async function getViewer(): Promise<Viewer | null> {
       userId: profile.id,
       profile,
       source,
-      grantedScopes: "read:self read:creator read:insights",
+      grantedScopes: "read:self read:post read:insights",
       demo: true,
     };
   }

@@ -77,7 +77,7 @@ way, this is where you stop until it is.
    It must match character for character, including the scheme and any trailing
    path. No trailing slash.
 3. Select scopes. Streak expects read-only:
-   `read:self`, `read:creator`, `read:insights`.
+   `read:self`, `read:post`, `read:insights`.
    **Write down the exact names shown in the UI** — they may differ from these,
    and step 5 is where you reconcile that.
 4. Copy the Client ID and Client Secret.
@@ -107,7 +107,7 @@ Now read the dashboard carefully. It is designed to tell you what is wrong.
 | --- | --- | --- |
 | Dashboard with your real posting history | Everything is correct | Go to APP_STORE.md |
 | Empty heatmap, streak 0, no warning | Posts endpoint path is wrong | Set `API_POSTS_PATH` to the correct path from the API docs |
-| Warning: "Posting history needs the read:creator scope" | Scope name mismatch | Fix `OAUTH_SCOPES` and `src/lib/fanvue/scopes.ts` to match the developer UI, reconnect |
+| Warning: "Posting history needs the read:post scope" | Scope name mismatch | Fix `OAUTH_SCOPES` and `src/lib/fanvue/scopes.ts` to match the developer UI, reconnect |
 | Warning: "Could not read your posts (API returned 404)" | Wrong path | As above |
 | Warning: "...(API returned 403)" | Scope not granted | Reconnect and approve, or re-check the app's scope selection |
 | Earnings panel off, with a warning | Insights scope or path | `API_INSIGHTS_EARNINGS_PATH`, or the scope name |

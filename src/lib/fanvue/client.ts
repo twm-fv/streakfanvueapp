@@ -40,7 +40,9 @@ export class FanvueClient {
       const res = await fetch(url, {
         headers: {
           Authorization: `Bearer ${this.accessToken}`,
-          "X-Fanvue-API-Version": env.API_VERSION,
+          // Setting API_VERSION to an empty string omits the header, so a wrong
+          // pinned version can be dropped without a code change.
+          ...(env.API_VERSION ? { "X-Fanvue-API-Version": env.API_VERSION } : {}),
           Accept: "application/json",
         },
         cache: "no-store",
