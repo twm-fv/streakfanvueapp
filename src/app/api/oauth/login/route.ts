@@ -5,7 +5,8 @@ import { randomId } from "@/lib/crypto";
 
 export async function GET(request: Request) {
   const { verifier, challenge } = generatePkce();
-  const state = randomId(16);
+  // The guide requires at least 32 characters; 32 bytes base64url gives 43.
+  const state = randomId(32);
 
   let authUrl: string;
   try {

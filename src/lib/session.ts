@@ -4,9 +4,15 @@ import { env } from "@/env";
 import { cookieKey, decrypt, encrypt, randomId } from "@/lib/crypto";
 import { getStore, type StoredSession } from "@/lib/store";
 import { refreshAccessToken, revokeToken } from "@/lib/oauth";
+import { coalesce } from "@/lib/coalesce";
 import type { TokenResponse } from "@/lib/oauth";
 
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30;
+/**
+ * Refresh this far ahead of expiry. The Fanvue guide recommends a 5 to 10 minute
+ * buffer so a token cannot lapse mid-request.
+ */
+const REFRESH_BUFFER_MS = 5 * 60 * 1000;
 
 /**
  * The browser cookie carries an opaque session id and nothing else. Access and
@@ -69,9 +75,9 @@ export type ActiveSession = {
 };
 
 /**
- * Returns a session with a live access token, refreshing it first if it is
- * within 60s of expiry. Returns null when there is no usable session, which
- * callers treat as "not connected" rather than as an error.
+ * Returns a session with a live access token, refreshing ahead of expiry.
+ * Returns null when there is no usable session, which callers treat as
+ * "not connected" rather than as an error.
  */
 export async function getActiveSession(): Promise<ActiveSession | null> {
   const sid = await readSid();
@@ -81,20 +87,27 @@ export async function getActiveSession(): Promise<ActiveSession | null> {
   let stored = await store.getSession(sid);
   if (!stored) return null;
 
-  if (Date.now() >= stored.expiresAt - 60_000) {
+  if (Date.now() >= stored.expiresAt - REFRESH_BUFFER_MS) {
     if (!stored.refreshToken) return null;
+    const current = stored;
     try {
-      const refreshed = await refreshAccessToken(decrypt(stored.refreshToken));
-      stored = {
-        ...stored,
-        accessToken: encrypt(refreshed.access_token),
-        refreshToken: refreshed.refresh_token
-          ? encrypt(refreshed.refresh_token)
-          : stored.refreshToken,
-        expiresAt: Date.now() + refreshed.expires_in * 1000,
-        scope: refreshed.scope ?? stored.scope,
-      } satisfies StoredSession;
-      await store.putSession(stored);
+      // Coalesced: refresh tokens are single-use, so two concurrent refreshes of
+      // one session would trip reuse detection and kill the whole chain.
+      stored = await coalesce(`refresh:${sid}`, async () => {
+        const refreshed = await refreshAccessToken(decrypt(current.refreshToken!));
+        const next: StoredSession = {
+          ...current,
+          accessToken: encrypt(refreshed.access_token),
+          // The response always carries a new refresh token; persist both.
+          refreshToken: refreshed.refresh_token
+            ? encrypt(refreshed.refresh_token)
+            : current.refreshToken,
+          expiresAt: Date.now() + refreshed.expires_in * 1000,
+          scope: refreshed.scope ?? current.scope,
+        };
+        await store.putSession(next);
+        return next;
+      });
     } catch {
       // Refresh token rejected or revoked upstream: drop the dead session.
       await store.deleteSession(sid);

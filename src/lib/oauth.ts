@@ -69,6 +69,12 @@ async function tokenRequest(params: URLSearchParams): Promise<TokenResponse> {
   return (await res.json()) as TokenResponse;
 }
 
+/**
+ * Credentials travel in the Basic auth header only. Fanvue registers
+ * confidential clients as `client_secret_basic`, and putting client_id or
+ * client_secret in the body is the `client_secret_post` method, which the token
+ * endpoint rejects with invalid_client.
+ */
 export function exchangeCodeForToken({
   code,
   codeVerifier,
@@ -82,19 +88,18 @@ export function exchangeCodeForToken({
       grant_type: "authorization_code",
       code,
       redirect_uri: cfg.redirectUri,
-      client_id: cfg.clientId,
       code_verifier: codeVerifier,
     }),
   );
 }
 
 export function refreshAccessToken(refreshToken: string) {
-  const cfg = requireOAuthConfig();
+  // Credentials come from the Basic header inside tokenRequest; the body carries
+  // only the grant, as the guide specifies.
   return tokenRequest(
     new URLSearchParams({
       grant_type: "refresh_token",
       refresh_token: refreshToken,
-      client_id: cfg.clientId,
     }),
   );
 }
