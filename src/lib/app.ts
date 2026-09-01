@@ -1,10 +1,11 @@
-import { env, isDemoMode } from "@/env";
+import { env, isDemoMode, pushConfigured } from "@/env";
 import { getActiveSession } from "@/lib/session";
 import { DemoSource } from "@/lib/fanvue/demo";
 import { FanvueSource } from "@/lib/fanvue/source";
 import type { ActivitySource, Profile } from "@/lib/fanvue/types";
 import { getStore, defaultUserState, type UserState } from "@/lib/store";
 import { analyse, type StreakSummary } from "@/lib/streak/engine";
+import { deriveInsights, peakPostingHour, type Insight } from "@/lib/streak/insights";
 import { isValidTimezone, todayIn } from "@/lib/streak/dates";
 
 export type Viewer = {
@@ -51,8 +52,13 @@ export async function getUserState(viewer: Viewer): Promise<UserState> {
   const store = getStore();
   const existing = await store.getUserState(viewer.userId);
   if (existing) {
-    // A creator who changes their Fanvue timezone should not keep an old one here.
-    if (existing.timezone !== viewer.profile.timezone && isValidTimezone(viewer.profile.timezone)) {
+    // Follow the profile timezone only until the creator picks one themselves;
+    // a chosen timezone is theirs and must not be silently overwritten.
+    if (
+      !existing.timezoneChosen &&
+      existing.timezone !== viewer.profile.timezone &&
+      isValidTimezone(viewer.profile.timezone)
+    ) {
       const updated = { ...existing, timezone: viewer.profile.timezone };
       await store.putUserState(updated);
       return updated;
@@ -64,9 +70,23 @@ export async function getUserState(viewer: Viewer): Promise<UserState> {
   return created;
 }
 
+export type ReminderInfo = {
+  /** True when this deployment can send Web Push. */
+  pushEnabled: boolean;
+  vapidPublicKey: string | null;
+  /** Path of the private calendar feed, once reminders have been switched on. */
+  calendarPath: string | null;
+  deviceCount: number;
+  /** The hour the creator naturally posts, derived from their history. */
+  suggestedHour: number | null;
+  suggestedDays: number[];
+};
+
 export type DashboardData = {
   summary: StreakSummary;
   state: UserState;
+  insights: Insight[];
+  reminders: ReminderInfo;
   warnings: string[];
   earningsAvailable: boolean;
   currency: string;
@@ -78,6 +98,7 @@ export async function buildDashboard(viewer: Viewer): Promise<DashboardData> {
   const state = await getUserState(viewer);
   const window = await viewer.source.getActivity(env.HISTORY_DAYS, state.timezone);
   const today = todayIn(state.timezone);
+  const now = new Date();
 
   const summary = analyse({
     days: window.days,
@@ -87,25 +108,59 @@ export async function buildDashboard(viewer: Viewer): Promise<DashboardData> {
     longestStreakEver: state.longestStreakEver ?? 0,
   });
 
-  // Persist the record streak and any newly earned milestones, so neither is
-  // lost when the streak breaks or ages out of the analysis window.
+  const insights = deriveInsights({
+    summary,
+    days: window.days,
+    postingHours: window.postingHours,
+    postsFound: window.postsFound,
+    earningsAvailable: window.earningsAvailable,
+    currency: window.currency,
+    timezone: state.timezone,
+    now,
+  });
+
+  // --- persist what changed, in one write ---------------------------------
+  // Milestones and the record streak must survive the streak breaking; the
+  // last-seen snapshot is what a reminder is written from later, so the app
+  // never has to reach into the account while its owner is away.
   const earned = summary.badges.filter((b) => b.unlocked).map((b) => b.days);
   const missing = earned.filter((d) => !state.unlockedBadges.includes(d));
   const recordImproved = summary.longestStreak > (state.longestStreakEver ?? 0);
-  if (missing.length || recordImproved) {
+  const lastSeen = {
+    date: today,
+    currentStreak: summary.currentStreak,
+    atRisk: summary.atRisk,
+    longestStreak: summary.longestStreak,
+  };
+  const seenChanged =
+    !state.lastSeen ||
+    state.lastSeen.date !== lastSeen.date ||
+    state.lastSeen.currentStreak !== lastSeen.currentStreak ||
+    state.lastSeen.atRisk !== lastSeen.atRisk;
+
+  if (missing.length || recordImproved || seenChanged) {
     const next: UserState = {
       ...state,
       unlockedBadges: [...state.unlockedBadges, ...missing].sort((a, b) => a - b),
       longestStreakEver: Math.max(state.longestStreakEver ?? 0, summary.longestStreak),
+      lastSeen,
     };
     await getStore().putUserState(next);
-    state.unlockedBadges = next.unlockedBadges;
-    state.longestStreakEver = next.longestStreakEver;
+    Object.assign(state, next);
   }
 
   return {
     summary,
     state,
+    insights,
+    reminders: {
+      pushEnabled: pushConfigured(),
+      vapidPublicKey: pushConfigured() ? env.VAPID_PUBLIC_KEY! : null,
+      calendarPath: state.calendarToken ? `/api/calendar/${state.calendarToken}.ics` : null,
+      deviceCount: state.pushSubscriptions?.length ?? 0,
+      suggestedHour: peakPostingHour(window.postingHours),
+      suggestedDays: summary.cadence.topDays,
+    },
     warnings: window.warnings,
     earningsAvailable: window.earningsAvailable,
     currency: window.currency,

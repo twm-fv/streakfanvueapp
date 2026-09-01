@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { env, isDemoMode } from "@/env";
+import { env, isDemoMode, pushConfigured } from "@/env";
 import { usingDurableStore } from "@/lib/store";
 
 /**
@@ -56,6 +56,9 @@ export async function GET() {
     storage: durable ? "redis" : "file",
     demoMode: demo,
     oauthConfigured: Boolean(env.OAUTH_CLIENT_ID && env.OAUTH_CLIENT_SECRET && env.OAUTH_REDIRECT_URI),
+    // Optional: without it the reminder card offers the calendar feed only.
+    pushConfigured: pushConfigured(),
+    cronConfigured: Boolean(env.CRON_SECRET),
     ready: warnings.length === 0,
     warnings,
   });

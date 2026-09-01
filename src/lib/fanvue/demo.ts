@@ -74,11 +74,19 @@ export class DemoSource implements ActivitySource {
       return { date, posts, earnings };
     });
 
+    // An evening poster, peaking around 21:00, so the reminder default is
+    // visibly derived from the data rather than a hard-coded 18:00.
+    const total = days.reduce((sum, d) => sum + d.posts, 0);
+    const weights = [1, 0, 0, 0, 0, 0, 1, 2, 3, 3, 2, 2, 3, 3, 2, 2, 3, 5, 7, 9, 12, 14, 10, 5];
+    const weightSum = weights.reduce((a, b) => a + b, 0);
+    const postingHours = weights.map((w) => Math.round((w / weightSum) * total));
+
     return {
       days,
       earningsAvailable: true,
       currency: "USD",
-      postsFound: days.reduce((sum, d) => sum + d.posts, 0),
+      postsFound: total,
+      postingHours,
       warnings: [],
     };
   }

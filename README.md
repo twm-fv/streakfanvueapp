@@ -18,7 +18,8 @@ does: through OAuth, with scopes the creator approves and can revoke.
 | Milestone badges | 7 / 30 / 100 / 365 days, with a downloadable share card | `read:post` |
 | Consistency vs earnings | Weekly posts against weekly earnings, and the measured uplift | `read:insights` |
 | Comeback tracker | How fast the creator returns after a break | `read:post` |
-| Gentle nudge | Reminder preference, defaulted to their two busiest weekdays | — |
+| Insights | Ranked, sample-guarded observations: streak at risk with the deadline, best-earning weekdays, posts-to-target this week, momentum, natural posting hour | `read:post`, some need `read:insights` |
+| Reminders | Web Push at the chosen hour on chosen days, plus a private calendar feed; defaults derived from the creator's own posting hour and days | — |
 
 Every panel degrades on its own. Decline `read:insights` and the earnings panel
 switches itself off; the rest still works.
@@ -95,10 +96,11 @@ cover.
   in `src/lib/store/store.test.ts` define what it must do.
 - **Rate limiting.** `rateLimit()` is in-process. Back it with shared storage if
   you run more than one instance.
-- **Reminders.** The nudge preference is stored and shown, but delivery is not
-  implemented in this release. The UI says so rather than implying otherwise.
-  Adding it means a scheduled job and an email or push provider; it needs no
-  additional Fanvue scope.
+- **Reminders never touch Fanvue in the background.** The hourly sender writes
+  each reminder from what the dashboard last computed while the creator was
+  present (`lastSeen`), so the app holds no live session to anyone's account
+  while they are away. That is a deliberate trust boundary, not a gap. Web Push
+  needs VAPID keys and `CRON_SECRET`; the calendar feed needs nothing.
 - **Endpoint paths.** `API_POSTS_PATH` and `API_INSIGHTS_EARNINGS_PATH` are
   configurable so a docs change does not require a code change. Verify them
   against the current [Fanvue API docs](https://api.fanvue.com/docs/welcome)

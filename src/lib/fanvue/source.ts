@@ -9,7 +9,7 @@ import {
 } from "./client";
 import { hasScope, SCOPE_POSTS, SCOPE_INSIGHTS } from "./scopes";
 import type { ActivitySource, ActivityWindow, DailyActivity, Profile } from "./types";
-import { addDays, eachDay, isValidTimezone, toLocalDate } from "@/lib/streak/dates";
+import { addDays, eachDay, isValidTimezone, localHour, toLocalDate } from "@/lib/streak/dates";
 
 const POST_DATE_KEYS = [
   "publishedAt",
@@ -107,11 +107,12 @@ export class FanvueSource implements ActivitySource {
     const start = addDays(today, -(historyDays - 1));
 
     const counts = new Map<string, number>();
+    const hours = Array.from({ length: 24 }, () => 0);
     let postsSeen = 0;
     let postsDated = 0;
     if (hasScope(this.grantedScopes, SCOPE_POSTS)) {
       try {
-        const tally = await this.collectPosts({ start, timezone, counts });
+        const tally = await this.collectPosts({ start, timezone, counts, hours });
         postsSeen = tally.seen;
         postsDated = tally.dated;
         // An empty heatmap has two very different causes: an account with
@@ -157,6 +158,7 @@ export class FanvueSource implements ActivitySource {
       earningsAvailable: earnings !== null,
       currency,
       postsFound: postsSeen,
+      postingHours: hours,
       warnings,
     };
   }
@@ -166,10 +168,13 @@ export class FanvueSource implements ActivitySource {
     start,
     timezone,
     counts,
+    hours,
   }: {
     start: string;
     timezone: string;
     counts: Map<string, number>;
+    /** 24 buckets; the hour each in-window post went out, in the creator's timezone. */
+    hours: number[];
   }): Promise<{ seen: number; dated: number }> {
     let cursor: string | null = null;
     let page = 1;
@@ -202,6 +207,7 @@ export class FanvueSource implements ActivitySource {
         }
         inWindow++;
         counts.set(date, (counts.get(date) ?? 0) + 1);
+        hours[localHour(instant, timezone)]++;
       }
 
       // Posts come back pinned first, then newest first. A pinned post can be

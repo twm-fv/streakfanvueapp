@@ -138,6 +138,59 @@ Work through [APP_STORE.md](./APP_STORE.md). The short version:
   read-only and what it stores; that is what a reviewer checks against the
   scopes you requested.
 
+## Step 7 — Reminders (optional, 10 min)
+
+The calendar feed works as soon as a creator turns reminders on: nothing to
+configure. Web Push notifications need four more variables and an hourly cron.
+
+1. Generate a VAPID key pair once, on your laptop:
+
+   ```bash
+   node -e "console.log(JSON.stringify(require('web-push').generateVAPIDKeys()))"
+   ```
+
+2. Generate a cron secret:
+
+   ```bash
+   node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
+   ```
+
+3. Add to Vercel and redeploy:
+
+   | Variable | Value |
+   | --- | --- |
+   | `VAPID_PUBLIC_KEY` | From step 1 |
+   | `VAPID_PRIVATE_KEY` | From step 1 |
+   | `VAPID_SUBJECT` | `mailto:` your support address |
+   | `CRON_SECRET` | From step 2 |
+
+   `/api/health` reports `pushConfigured: true` once they have landed.
+
+4. The cron. `vercel.json` schedules `/api/cron/nudge` hourly and Vercel sends
+   `CRON_SECRET` as a Bearer token automatically. **On the Hobby plan Vercel
+   runs crons at most once a day**, which cannot hit each creator's chosen hour.
+   Either use the Pro plan, or trigger it hourly from anywhere else, for example
+   a GitHub Actions schedule:
+
+   ```yaml
+   # .github/workflows/nudge.yml
+   on:
+     schedule: [{ cron: "0 * * * *" }]
+   jobs:
+     nudge:
+       runs-on: ubuntu-latest
+       steps:
+         - run: >
+             curl -fsS -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
+             https://showreel-three.vercel.app/api/cron/nudge
+   ```
+
+   The endpoint is idempotent per creator per day, so overlapping triggers are
+   harmless.
+
+What the reminder says is written from what the dashboard last computed while
+the creator was looking at it. No Fanvue call happens in the cron, by design.
+
 ## Operating it afterwards
 
 - **Rotate the client secret** if it is ever exposed, from the Fanvue Developer

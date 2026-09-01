@@ -7,6 +7,30 @@ export type NudgePrefs = {
   days: number[];
   /** Local hour, 0-23. */
   hour: number;
+  /** Local calendar date of the last reminder sent, so one fires per day at most. */
+  lastSentOn?: string;
+};
+
+/** A browser push subscription, exactly as the Push API hands it over. */
+export type PushSubscriptionRecord = {
+  endpoint: string;
+  keys: { p256dh: string; auth: string };
+  /** Free-text label from the user agent, for the "your devices" list. */
+  userAgent?: string;
+  createdAt: string;
+};
+
+/**
+ * What the dashboard last computed while the creator was actually looking.
+ * Reminders are written from this rather than from a background API call, so
+ * the app never reaches into a Fanvue account while its owner is away.
+ */
+export type LastSeen = {
+  /** Local date the dashboard was rendered. */
+  date: string;
+  currentStreak: number;
+  atRisk: boolean;
+  longestStreak: number;
 };
 
 export type UserState = {
@@ -23,6 +47,15 @@ export type UserState = {
    */
   longestStreakEver: number;
   nudge: NudgePrefs;
+  /**
+   * True once the creator has chosen a timezone themselves. Until then the
+   * profile timezone (or UTC) is used and may be refreshed from the profile.
+   */
+  timezoneChosen?: boolean;
+  pushSubscriptions?: PushSubscriptionRecord[];
+  /** Capability token for the private calendar feed. Regenerable. */
+  calendarToken?: string;
+  lastSeen?: LastSeen;
   createdAt: string;
   updatedAt: string;
 };
@@ -47,6 +80,10 @@ export interface Store {
   putUserState(state: UserState): Promise<void>;
   /** Full erasure for a data-deletion request: state plus every session. */
   deleteUser(userId: string): Promise<void>;
+  /** Creators with reminders switched on, for the hourly sender. */
+  listNudgeUsers(): Promise<UserState[]>;
+  /** Resolves a calendar feed token to its owner, or null. */
+  findUserByCalendarToken(token: string): Promise<UserState | null>;
 }
 
 export const MAX_FREEZES_PER_MONTH = 3;

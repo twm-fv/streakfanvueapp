@@ -35,6 +35,19 @@ export function toLocalDate(instant: Date, timezone: string): string {
   return formatterFor(timezone).format(instant);
 }
 
+const hourFormatterCache = new Map<string, Intl.DateTimeFormat>();
+
+/** 0-23 in the creator's timezone. */
+export function localHour(instant: Date, timezone: string): number {
+  let fmt = hourFormatterCache.get(timezone);
+  if (!fmt) {
+    fmt = new Intl.DateTimeFormat("en-GB", { timeZone: timezone, hour: "2-digit", hour12: false });
+    hourFormatterCache.set(timezone, fmt);
+  }
+  // en-GB renders midnight as "00", never "24".
+  return Number(fmt.format(instant)) % 24;
+}
+
 export function todayIn(timezone: string, now = new Date()): string {
   return toLocalDate(now, timezone);
 }

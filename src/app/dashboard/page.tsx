@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { buildDashboard, getViewer } from "@/lib/app";
+import { MILESTONES } from "@/lib/streak/engine";
 import { Footer } from "@/components/Footer";
 import { Heatmap } from "@/components/Heatmap";
 import { ConsistencyChart } from "@/components/ConsistencyChart";
@@ -7,6 +8,7 @@ import { StreakHero } from "@/components/StreakHero";
 import { Badges } from "@/components/Badges";
 import { NudgeCard } from "@/components/NudgeCard";
 import { AccountCard } from "@/components/AccountCard";
+import { Insights } from "@/components/Insights";
 import { env } from "@/env";
 
 /** Amounts arrive in major units already; creators are not all paid in USD. */
@@ -18,7 +20,6 @@ function formatMoney(amount: number, currency: string) {
       maximumFractionDigits: 0,
     }).format(amount);
   } catch {
-    // An unrecognised currency code must not take the whole dashboard down.
     return `${Math.round(amount).toLocaleString("en-US")} ${currency}`;
   }
 }
@@ -27,10 +28,11 @@ export default async function Dashboard() {
   const viewer = await getViewer();
   if (!viewer) redirect("/");
 
-  const { summary, state, warnings, earningsAvailable, currency, postsFound } =
+  const { summary, state, insights, reminders, warnings, earningsAvailable, currency, postsFound } =
     await buildDashboard(viewer);
   const money = (amount: number) => formatMoney(amount, currency);
   const { correlation, comeback, bests } = summary;
+  const nextMilestone = MILESTONES.find((m) => m.days > summary.currentStreak) ?? null;
 
   return (
     <div className="wrap">
@@ -71,21 +73,21 @@ export default async function Dashboard() {
         </div>
       )}
 
+      <Insights insights={insights} />
+
       <div className="grid">
         <StreakHero
           currentStreak={summary.currentStreak}
           message={summary.message}
           atRisk={summary.atRisk}
+          nextMilestone={nextMilestone}
           freezes={summary.freezes}
         />
 
-        <div className="card full">
+        <div className="card full rise">
           <h2>Posting activity (last {env.HISTORY_DAYS} days, {state.timezone})</h2>
           <Heatmap weeks={summary.weeks} />
           {postsFound === 0 && warnings.length === 0 && (
-            // An empty grid on its own is ambiguous. Say plainly that Fanvue
-            // reported nothing, so a new creator is not left wondering whether
-            // the app is broken.
             <p className="muted-line" style={{ marginTop: 12 }}>
               Fanvue has no posts on this account in the last {env.HISTORY_DAYS} days. Post once and
               your streak starts here.
@@ -93,7 +95,7 @@ export default async function Dashboard() {
           )}
         </div>
 
-        <div className="card">
+        <div className="card rise">
           <h2>Personal bests</h2>
           <div className="best-row">
             <span>Longest streak</span>
@@ -115,7 +117,7 @@ export default async function Dashboard() {
           </div>
         </div>
 
-        <div className="card">
+        <div className="card rise">
           <h2>Milestone badges</h2>
           <Badges
             badges={summary.badges}
@@ -124,7 +126,7 @@ export default async function Dashboard() {
           />
         </div>
 
-        <div className="card full">
+        <div className="card full rise">
           <h2>Consistency vs earnings</h2>
           {earningsAvailable ? (
             <>
@@ -140,7 +142,9 @@ export default async function Dashboard() {
                   )}
                   On weeks where you posted 5 or more times, average earnings were{" "}
                   <b>
-                    {correlation.upliftPct >= 0 ? `${correlation.upliftPct}% higher` : `${Math.abs(correlation.upliftPct)}% lower`}
+                    {correlation.upliftPct >= 0
+                      ? `${correlation.upliftPct}% higher`
+                      : `${Math.abs(correlation.upliftPct)}% lower`}
                   </b>{" "}
                   than weeks with 2 or fewer posts ({money(correlation.highPostAvg)} vs{" "}
                   {money(correlation.lowPostAvg)} per week).
@@ -159,7 +163,8 @@ export default async function Dashboard() {
           )}
         </div>
 
-        <div className="card">
+        <div className="stack">
+        <div className="card rise">
           <h2>Comeback tracker</h2>
           {comeback.breaks === 0 ? (
             <p className="muted-line">
@@ -167,7 +172,6 @@ export default async function Dashboard() {
               how quickly you got going again.
             </p>
           ) : comeback.breaks === 1 ? (
-            // One break is not an average, so state the single fact instead.
             <>
               <div className="comeback-stat">
                 <span className="n">
@@ -176,7 +180,7 @@ export default async function Dashboard() {
                 <span className="muted-line">off before you posted again</span>
               </div>
               <div className="muted-line">
-                One break so far. Come back from a few more and this becomes a average worth
+                One break so far. Come back from a few more and this becomes an average worth
                 watching.
               </div>
             </>
@@ -196,14 +200,11 @@ export default async function Dashboard() {
             </>
           )}
         </div>
-
-        <NudgeCard
-          initial={state.nudge}
-          suggestedDays={summary.cadence.topDays}
-          timezone={state.timezone}
-        />
-
         <AccountCard demo={viewer.demo} />
+        </div>
+
+        <NudgeCard initial={state.nudge} timezone={state.timezone} reminders={reminders} />
+
       </div>
 
       <Footer />

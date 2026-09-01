@@ -48,6 +48,15 @@ export const env = createEnv({
       .string()
       .optional()
       .transform((v) => v === "true" || v === "1"),
+    // --- Reminders (optional; the calendar feed works without any of these) ---
+    /** Generate once: node -e "console.log(JSON.stringify(require('web-push').generateVAPIDKeys()))" */
+    VAPID_PUBLIC_KEY: z.string().min(1).optional(),
+    VAPID_PRIVATE_KEY: z.string().min(1).optional(),
+    /** mailto: or https: contact the push services can reach you at. */
+    VAPID_SUBJECT: z.string().min(1).optional(),
+    /** Shared secret the hourly cron presents. Vercel sends it as a Bearer token. */
+    CRON_SECRET: z.string().min(16).optional(),
+
     /** Days of history to pull and analyse. */
     HISTORY_DAYS: z.coerce.number().int().min(30).max(730).default(140),
   },
@@ -71,6 +80,10 @@ export const env = createEnv({
     UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
     DEMO_MODE: process.env.DEMO_MODE,
     HISTORY_DAYS: process.env.HISTORY_DAYS,
+    VAPID_PUBLIC_KEY: process.env.VAPID_PUBLIC_KEY,
+    VAPID_PRIVATE_KEY: process.env.VAPID_PRIVATE_KEY,
+    VAPID_SUBJECT: process.env.VAPID_SUBJECT,
+    CRON_SECRET: process.env.CRON_SECRET,
   },
   emptyStringAsUndefined: true,
 });
@@ -106,3 +119,7 @@ export function requireOAuthConfig(): OAuthConfig {
 }
 
 export const isDemoMode = () => env.DEMO_MODE === true;
+
+/** Web Push is optional: without keys the reminder card offers the calendar feed only. */
+export const pushConfigured = () =>
+  Boolean(env.VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY && env.VAPID_SUBJECT);

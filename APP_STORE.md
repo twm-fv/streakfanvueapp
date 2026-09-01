@@ -65,6 +65,7 @@ left for you to do before submitting.
 - **No write scopes.** The app cannot post or message on a creator's behalf.
 - **No background access.** Streak calls the Fanvue API only while a creator is
   looking at the page. It runs no unattended job against their account.
-- **No reminder delivery yet.** The preference is stored and the UI says
-  delivery is not enabled. Shipping it needs an email or push provider, not a
-  further Fanvue scope.
+- **Reminders without background account access.** Web Push and calendar
+  reminders fire on the creator's schedule, written from what the dashboard last
+  saw while they were present. The hourly job makes no Fanvue API call, so the
+  app never holds a live session to an account whose owner is away.

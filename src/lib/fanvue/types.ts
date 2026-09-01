@@ -26,6 +26,8 @@ export type ActivityWindow = {
   currency: string;
   /** Posts the API returned at all, before date parsing. Zero means an empty account. */
   postsFound: number;
+  /** Posts per local hour of day, 24 buckets. Drives the reminder default. */
+  postingHours: number[];
   /** Anything the app asked for but could not read, surfaced in the UI rather than hidden. */
   warnings: string[];
 };
