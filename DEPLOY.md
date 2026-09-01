@@ -157,10 +157,18 @@ Nothing for them to configure.
    node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
    ```
 
-3. Arrange an **hourly** trigger for `/api/cron/nudge`. `vercel.json` already
-   schedules it, but **the Hobby plan runs crons at most once a day**, which
-   cannot hit each creator's chosen hour. Either move to Pro, or trigger it from
-   GitHub Actions for free:
+3. Arrange an **hourly** trigger for `/api/cron/nudge`. Vercel's Hobby plan
+   only allows daily crons and rejects the whole deployment if an hourly one is
+   declared, so the repo ships without one. Two options:
+
+   **Pro plan:** add a `vercel.json` at the repo root and Vercel sends
+   `CRON_SECRET` as the Bearer token automatically:
+
+   ```json
+   { "crons": [{ "path": "/api/cron/nudge", "schedule": "0 * * * *" }] }
+   ```
+
+   **Free, any plan:** trigger it from GitHub Actions:
 
    ```yaml
    # .github/workflows/nudge.yml
@@ -176,7 +184,7 @@ Nothing for them to configure.
    ```
 
    Add `CRON_SECRET` as a repository secret. The endpoint is idempotent per
-   creator per day, so an overlapping Vercel cron is harmless.
+   creator per day, so running both triggers at once would be harmless.
 
 4. Add to Vercel and redeploy:
 
