@@ -114,10 +114,10 @@ Now read the dashboard carefully. It is designed to tell you what is wrong.
 | Heatmap populated but shifted by a day | Timezone | Check the timezone shown in the heatmap heading matches your Fanvue profile |
 | `oauth_state_mismatch` on return | Sign-in took over 10 minutes, or cookies blocked | Retry; if persistent, check `BASE_URL` matches the domain exactly |
 
-The endpoint paths and scope names carry best-effort defaults, because the
-Fanvue API docs were not reachable from the machine this was built on. This step
-is where you confirm them. All four are environment variables, so correcting
-them is a redeploy, not a code change.
+Endpoint paths, scope names and the API version are now taken from the Fanvue
+API reference rather than guessed: `/insights/earnings`, `read:self read:post
+read:insights`, and version `2025-06-26`. They remain environment variables, so
+if the API moves one, correcting it is a redeploy rather than a code change.
 
 If a response comes back in a shape the parser does not recognise, the date and
 amount field names it looks for are the constants at the top of

@@ -23,7 +23,7 @@ function post(date: string) {
 }
 
 /** A full page, so the "short page means no more pages" rule does not fire. */
-const PAGE = 100;
+const PAGE = 50;
 
 describe("post collection", () => {
   it("keeps paginating past a pinned post that predates the window", async () => {
@@ -49,9 +49,9 @@ describe("post collection", () => {
     const window = await new FanvueSource("token", SCOPES, client).getActivity(30, TZ);
     const total = window.days.reduce((sum, d) => sum + d.posts, 0);
 
-    // 99 in-window on page one plus 100 on page two. Stopping at the pinned post
-    // would have given 99 and quietly lost half the history.
-    expect(total).toBe(199);
+    // 49 in-window on page one plus 50 on page two. Stopping at the pinned post
+    // would have given 49 and quietly lost half the history.
+    expect(total).toBe(99);
     expect(calls.filter((c) => c.path.includes("posts")).length).toBe(3);
     expect(window.warnings.join(" ")).not.toContain("posts");
   });
@@ -83,38 +83,82 @@ describe("post collection", () => {
 });
 
 describe("earnings collection", () => {
-  it("follows the cursor instead of reading only the first page", async () => {
+  /** The envelope shape documented in the API reference. */
+  function earning(date: string, net: number, gross = net) {
+    return { date: `${date}T12:00:00Z`, gross, net, currency: "USD", source: "subscription" };
+  }
+
+  it("converts minor units to major units", async () => {
+    const today = todayIn(TZ);
+    const { client } = fakeClient((path) => {
+      if (path.includes("posts")) return { data: [] };
+      // 1999 cents is $19.99, not $1,999.
+      return { data: [earning(today, 1999)], nextCursor: null };
+    });
+
+    const window = await new FanvueSource("token", SCOPES, client).getActivity(30, TZ);
+    expect(window.days.find((d) => d.date === today)?.earnings).toBeCloseTo(19.99, 2);
+  });
+
+  it("uses net rather than gross, so fees are not counted as earnings", async () => {
+    const today = todayIn(TZ);
+    const { client } = fakeClient((path) => {
+      if (path.includes("posts")) return { data: [] };
+      return { data: [earning(today, 1599, 1999)], nextCursor: null };
+    });
+
+    const window = await new FanvueSource("token", SCOPES, client).getActivity(30, TZ);
+    expect(window.days.find((d) => d.date === today)?.earnings).toBeCloseTo(15.99, 2);
+  });
+
+  it("follows nextCursor instead of reading only the first page", async () => {
     const today = todayIn(TZ);
     const { client, calls } = fakeClient((path, query) => {
       if (path.includes("posts")) return { data: [] };
       if (!query.cursor) {
-        return { data: [{ date: today, amount: 100 }], pagination: { nextCursor: "page-2" } };
+        return { data: [earning(today, 10000)], nextCursor: "eyJpZCI6IjEyMyJ9" };
       }
-      return { data: [{ date: today, amount: 50 }] };
+      return { data: [earning(today, 5000)], nextCursor: null };
     });
 
     const window = await new FanvueSource("token", SCOPES, client).getActivity(30, TZ);
-    const todayRow = window.days.find((d) => d.date === today);
-
-    // 100 from page one plus 50 from page two; stopping early would give 100.
-    expect(todayRow?.earnings).toBe(150);
+    // $100 from page one plus $50 from page two; stopping early would give $100.
+    expect(window.days.find((d) => d.date === today)?.earnings).toBeCloseTo(150, 2);
     expect(calls.filter((c) => !c.path.includes("posts")).length).toBe(2);
   });
 
-  it("nets refunds out of the day they belong to", async () => {
+  it("nets a reversal out of the day it belongs to", async () => {
+    const today = todayIn(TZ);
+    const { client } = fakeClient((path) => {
+      if (path.includes("posts")) return { data: [] };
+      // A reversal is its own invoice for the full amount, written negative.
+      return { data: [earning(today, 20000), earning(today, -7500)], nextCursor: null };
+    });
+
+    const window = await new FanvueSource("token", SCOPES, client).getActivity(30, TZ);
+    expect(window.days.find((d) => d.date === today)?.earnings).toBeCloseTo(125, 2);
+  });
+
+  it("reports the currency the rows are denominated in", async () => {
     const today = todayIn(TZ);
     const { client } = fakeClient((path) => {
       if (path.includes("posts")) return { data: [] };
       return {
-        data: [
-          { date: today, amount: 200 },
-          { date: today, amount: -75 },
-        ],
+        data: [{ date: `${today}T12:00:00Z`, net: 1000, gross: 1000, currency: "EUR" }],
+        nextCursor: null,
       };
     });
 
     const window = await new FanvueSource("token", SCOPES, client).getActivity(30, TZ);
-    expect(window.days.find((d) => d.date === today)?.earnings).toBe(125);
+    expect(window.currency).toBe("EUR");
+  });
+
+  it("requests no more than the documented maximum page size", async () => {
+    const { client, calls } = fakeClient(() => ({ data: [] }));
+    await new FanvueSource("token", SCOPES, client).getActivity(30, TZ);
+    for (const call of calls) {
+      expect(Number(call.query.size)).toBeLessThanOrEqual(50);
+    }
   });
 
   it("reports earnings as unavailable without the insights scope", async () => {
@@ -129,5 +173,23 @@ describe("earnings collection", () => {
     const window = await new FanvueSource("token", "read:self", client).getActivity(30, TZ);
     expect(window.warnings.join(" ")).toContain("read:post");
     expect(window.days.every((d) => d.posts === 0)).toBe(true);
+  });
+});
+
+describe("page-based pagination", () => {
+  it("keeps going while pagination.hasMore is true", async () => {
+    const today = todayIn(TZ);
+    const { client, calls } = fakeClient((path) => {
+      if (!path.includes("posts")) return { data: [] };
+      const call = calls.filter((c) => c.path.includes("posts")).length;
+      // Short pages, but hasMore says there is more to fetch.
+      if (call < 3) {
+        return { data: [post(today)], pagination: { page: call, size: 50, hasMore: true } };
+      }
+      return { data: [post(today)], pagination: { page: call, size: 50, hasMore: false } };
+    });
+
+    await new FanvueSource("token", SCOPES, client).getActivity(30, TZ);
+    expect(calls.filter((c) => c.path.includes("posts")).length).toBe(3);
   });
 });

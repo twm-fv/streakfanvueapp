@@ -9,19 +9,26 @@ import { NudgeCard } from "@/components/NudgeCard";
 import { AccountCard } from "@/components/AccountCard";
 import { env } from "@/env";
 
-function money(amount: number) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(amount);
+/** Amounts arrive in major units already; creators are not all paid in USD. */
+function formatMoney(amount: number, currency: string) {
+  try {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency,
+      maximumFractionDigits: 0,
+    }).format(amount);
+  } catch {
+    // An unrecognised currency code must not take the whole dashboard down.
+    return `${Math.round(amount).toLocaleString("en-US")} ${currency}`;
+  }
 }
 
 export default async function Dashboard() {
   const viewer = await getViewer();
   if (!viewer) redirect("/");
 
-  const { summary, state, warnings, earningsAvailable } = await buildDashboard(viewer);
+  const { summary, state, warnings, earningsAvailable, currency } = await buildDashboard(viewer);
+  const money = (amount: number) => formatMoney(amount, currency);
   const { correlation, comeback, bests } = summary;
 
   return (

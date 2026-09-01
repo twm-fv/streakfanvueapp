@@ -20,17 +20,42 @@ const POST_DATE_KEYS = [
   "date",
 ];
 const EARNING_DATE_KEYS = ["date", "day", "paidAt", "paid_at", "periodStart", "period_start", "createdAt"];
-const EARNING_AMOUNT_KEYS = ["amount", "total", "gross", "net", "earnings", "value", "sum"];
+/**
+ * `net` first: gross is what the fan paid, net is what the creator actually
+ * keeps after platform fees, which is the number a creator recognises as their
+ * earnings.
+ */
+const EARNING_AMOUNT_KEYS = ["net", "gross", "amount", "total", "earnings", "value", "sum"];
 
 
-/** Hard cap so a creator with years of posts cannot make one request paginate forever. */
-const MAX_PAGES = 25;
+/**
+ * The API caps page size at 50 and allows 100 requests per minute per user.
+ * Twenty pages each for posts and earnings keeps one dashboard load well inside
+ * that budget while still covering a busy creator's window.
+ */
+const PAGE_SIZE = 50;
+const MAX_PAGES = 20;
+
+/** The API returns integer minor units; every amount is divided by this once. */
+const MINOR_UNITS_PER_MAJOR = 100;
 
 /**
  * Turns an API failure into something a creator can act on. A 403 means the
  * token lacks the scope, which reconnecting fixes; a 404 means the endpoint
  * path is wrong, which is the operator's problem, not theirs.
  */
+/**
+ * Page-based responses carry pagination.hasMore. Returns null when the envelope
+ * does not say, so the caller can fall back to its own heuristic.
+ */
+function hasMorePages(payload: unknown): boolean | null {
+  if (!payload || typeof payload !== "object") return null;
+  const pagination = (payload as Record<string, unknown>).pagination;
+  if (!pagination || typeof pagination !== "object") return null;
+  const more = (pagination as Record<string, unknown>).hasMore;
+  return typeof more === "boolean" ? more : null;
+}
+
 function describeFailure(error: unknown, what: string, scope: string): string {
   if (error instanceof FanvueApiError) {
     if (error.status === 403) {
@@ -93,11 +118,14 @@ export class FanvueSource implements ActivitySource {
     }
 
     let earnings: Map<string, number> | null = null;
+    let currency = "USD";
     if (hasScope(this.grantedScopes, SCOPE_INSIGHTS)) {
       try {
-        earnings = await this.collectEarnings(start, today);
+        const collected = await this.collectEarnings(start, today);
+        earnings = collected.byDate;
+        currency = collected.currency ?? currency;
         if (earnings.size === 0) {
-          warnings.push("No daily earnings were returned for this period.");
+          warnings.push("No earnings were returned for this period.");
         }
       } catch (error) {
         warnings.push(describeFailure(error, "earnings insights", SCOPE_INSIGHTS));
@@ -110,7 +138,7 @@ export class FanvueSource implements ActivitySource {
       earnings: earnings ? (earnings.get(date) ?? 0) : null,
     }));
 
-    return { days, earningsAvailable: earnings !== null, warnings };
+    return { days, earningsAvailable: earnings !== null, currency, warnings };
   }
 
   /** Walks pages newest-first and stops as soon as it passes the window start. */
@@ -128,7 +156,7 @@ export class FanvueSource implements ActivitySource {
 
     for (let i = 0; i < MAX_PAGES; i++) {
       const payload = await this.client.get<unknown>(env.API_POSTS_PATH, {
-        size: 100,
+        size: PAGE_SIZE,
         ...(cursor ? { cursor } : { page }),
       });
       const items = extractList(payload);
@@ -159,7 +187,11 @@ export class FanvueSource implements ActivitySource {
       if (inWindow === 0 && older > 0) return;
       cursor = extractNextCursor(payload);
       page += 1;
-      if (!cursor && items.length < 100) return;
+      // Page-based responses say outright whether more pages exist; only fall
+      // back to inferring from a short page when they do not.
+      const more = hasMorePages(payload);
+      if (more === false) return;
+      if (more === null && !cursor && items.length < PAGE_SIZE) return;
     }
   }
 
@@ -171,8 +203,12 @@ export class FanvueSource implements ActivitySource {
    * Each row also carries details of the fan who paid. Only the date and amount
    * are read; nothing identifying a fan is kept, logged or stored.
    */
-  private async collectEarnings(start: string, end: string): Promise<Map<string, number>> {
+  private async collectEarnings(
+    start: string,
+    end: string,
+  ): Promise<{ byDate: Map<string, number>; currency: string | null }> {
     const out = new Map<string, number>();
+    let currency: string | null = null;
     let cursor: string | null = null;
 
     for (let i = 0; i < MAX_PAGES; i++) {
@@ -181,7 +217,7 @@ export class FanvueSource implements ActivitySource {
         {
           startDate: start,
           endDate: end,
-          size: 100,
+          size: PAGE_SIZE,
           ...(cursor ? { cursor } : {}),
         },
       );
@@ -193,14 +229,16 @@ export class FanvueSource implements ActivitySource {
         const rawDate = pickString(row, EARNING_DATE_KEYS);
         const amount = pickNumber(row, EARNING_AMOUNT_KEYS);
         if (!rawDate || amount === null) continue;
-        // Refunds and chargebacks arrive as negative rows, so a day nets out.
+        currency ??= pickString(row, ["currency"]);
+        // Refunds and chargebacks arrive as their own negative rows, so a day
+        // nets out on its own without special handling.
         const date = rawDate.slice(0, 10);
-        out.set(date, (out.get(date) ?? 0) + amount);
+        out.set(date, (out.get(date) ?? 0) + amount / MINOR_UNITS_PER_MAJOR);
       }
 
       cursor = extractNextCursor(payload);
-      if (!cursor || items.length === 0) return out;
+      if (!cursor || items.length === 0) break;
     }
-    return out;
+    return { byDate: out, currency };
   }
 }

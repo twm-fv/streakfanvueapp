@@ -11,13 +11,19 @@ export type DailyActivity = {
   /** YYYY-MM-DD */
   date: string;
   posts: number;
-  /** null when the earnings scope was not granted. */
+  /**
+   * Major units (dollars, not cents). The API returns integer minor units;
+   * conversion happens once, at the edge, so nothing downstream has to know.
+   * null when the earnings scope was not granted.
+   */
   earnings: number | null;
 };
 
 export type ActivityWindow = {
   days: DailyActivity[];
   earningsAvailable: boolean;
+  /** ISO code from the earnings rows. Creators are not all paid in USD. */
+  currency: string;
   /** Anything the app asked for but could not read, surfaced in the UI rather than hidden. */
   warnings: string[];
 };

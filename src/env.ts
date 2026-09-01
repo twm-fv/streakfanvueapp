@@ -20,7 +20,8 @@ export const env = createEnv({
 
     // --- Fanvue API ---
     API_BASE_URL: z.url().default("https://api.fanvue.com"),
-    API_VERSION: z.string().default("2025-06-26"),
+    /** Required by every endpoint. Confirmed current in the API reference. */
+    API_VERSION: z.string().min(1).default("2025-06-26"),
     /** Endpoint paths are overridable so a docs change does not require a code change. */
     API_POSTS_PATH: z.string().default("/posts"),
     API_INSIGHTS_EARNINGS_PATH: z.string().default("/insights/earnings"),

@@ -74,6 +74,6 @@ export class DemoSource implements ActivitySource {
       return { date, posts, earnings };
     });
 
-    return { days, earningsAvailable: true, warnings: [] };
+    return { days, earningsAvailable: true, currency: "USD", warnings: [] };
   }
 }
