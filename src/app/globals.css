@@ -116,9 +116,12 @@ select {
 
 .heatmap { display: flex; gap: 3px; overflow-x: auto; padding-bottom: 6px; }
 .week { display: flex; flex-direction: column; gap: 3px; }
-.day { width: 13px; height: 13px; border-radius: 3px; background: #eeecf7; }
-.day[data-level="1"] { background: #cfc7f5; }
-.day[data-level="2"] { background: #9c8eea; }
+/* A day with nothing posted is neutral grey, not a pale tint of the brand
+   purple. Every purple cell then means one thing: you posted. An empty account
+   reads as empty instead of as a faint wash of activity. */
+.day { width: 13px; height: 13px; border-radius: 3px; background: #E9E9EE; }
+.day[data-level="1"] { background: #C0B4F2; }
+.day[data-level="2"] { background: #8E7CE6; }
 .day[data-level="3"] { background: var(--purple); }
 .day[data-frozen="true"] { background: var(--flame-light); border: 1px solid var(--flame); }
 .day[data-future="true"] { background: transparent; }
