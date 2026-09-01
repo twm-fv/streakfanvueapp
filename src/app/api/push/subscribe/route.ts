@@ -3,7 +3,7 @@ import { z } from "zod";
 import { getViewer, getUserState } from "@/lib/app";
 import { getStore, type PushSubscriptionRecord } from "@/lib/store";
 import { isSameOrigin, jsonError, rateLimit } from "@/lib/http";
-import { pushConfigured } from "@/env";
+import { remindersLive } from "@/env";
 
 const subscriptionSchema = z.object({
   endpoint: z.url(),
@@ -15,7 +15,7 @@ const MAX_DEVICES = 8;
 
 export async function POST(request: Request) {
   if (!isSameOrigin(request)) return jsonError(403, "Cross-origin request rejected");
-  if (!pushConfigured()) return jsonError(503, "Push notifications are not enabled on this deployment");
+  if (!remindersLive()) return jsonError(503, "Reminders are not available on this deployment yet");
 
   const viewer = await getViewer();
   if (!viewer) return jsonError(401, "Not connected");

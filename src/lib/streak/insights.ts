@@ -30,6 +30,8 @@ export type InsightInput = {
   earningsAvailable: boolean;
   currency: string;
   timezone: string;
+  /** Whether the deployment can actually deliver a reminder right now. */
+  remindersLive: boolean;
   now: Date;
 };
 
@@ -81,8 +83,17 @@ export function peakPostingHour(postingHours: number[]): number | null {
 }
 
 export function deriveInsights(input: InsightInput): Insight[] {
-  const { summary, days, postingHours, postsFound, earningsAvailable, currency, timezone, now } =
-    input;
+  const {
+    summary,
+    days,
+    postingHours,
+    postsFound,
+    earningsAvailable,
+    currency,
+    timezone,
+    remindersLive,
+    now,
+  } = input;
   const out: Insight[] = [];
 
   // --- not enough history yet: one honest card instead of empty guesses ----
@@ -237,9 +248,11 @@ export function deriveInsights(input: InsightInput): Insight[] {
       id: "posting-hour",
       tone: "neutral",
       title: `You usually post around ${String(peak).padStart(2, "0")}:00`,
-      body: "A reminder a little before that catches you at the moment you already tend to post, rather than interrupting your day.",
+      body: remindersLive
+        ? "A reminder a little before that catches you at the moment you already tend to post, rather than interrupting your day."
+        : "Knowing your natural hour makes it easier to protect. Block it out, and the streak looks after itself.",
       metric: `${String(peak).padStart(2, "0")}:00`,
-      action: { label: "Set a reminder", kind: "remind" },
+      ...(remindersLive ? { action: { label: "Set a reminder", kind: "remind" as const } } : {}),
     });
   }
 

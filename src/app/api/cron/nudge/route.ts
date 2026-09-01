@@ -1,6 +1,6 @@
 import { timingSafeEqual } from "crypto";
 import { NextResponse } from "next/server";
-import { env, pushConfigured } from "@/env";
+import { env, remindersLive } from "@/env";
 import { getStore, type UserState } from "@/lib/store";
 import { sendPush, type PushPayload } from "@/lib/push";
 import { dayOfWeek, localHour, todayIn } from "@/lib/streak/dates";
@@ -54,8 +54,8 @@ function compose(state: UserState, today: string): PushPayload {
  */
 export async function GET(request: Request) {
   if (!authorised(request)) return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
-  if (!pushConfigured()) {
-    return NextResponse.json({ error: "Push is not configured" }, { status: 503 });
+  if (!remindersLive()) {
+    return NextResponse.json({ error: "Reminders are not enabled" }, { status: 503 });
   }
 
   const store = getStore();

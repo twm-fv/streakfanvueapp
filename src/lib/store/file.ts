@@ -87,11 +87,6 @@ export class FileStore implements Store {
     return Object.values(snap.users).filter((u) => u.nudge?.enabled);
   }
 
-  async findUserByCalendarToken(token: string): Promise<UserState | null> {
-    const snap = await this.load();
-    return Object.values(snap.users).find((u) => u.calendarToken === token) ?? null;
-  }
-
   async deleteUser(userId: string): Promise<void> {
     await this.mutate((snap) => {
       delete snap.users[userId];

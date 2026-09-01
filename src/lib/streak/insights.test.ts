@@ -27,6 +27,7 @@ function run(days: DailyActivity[], extra: Partial<Parameters<typeof deriveInsig
     earningsAvailable: days.some((d) => d.earnings !== null),
     currency: "USD",
     timezone: "UTC",
+    remindersLive: true,
     now: NOON,
     ...extra,
   });

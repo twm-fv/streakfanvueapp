@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { env, isDemoMode, pushConfigured } from "@/env";
+import { env, isDemoMode, pushConfigured, remindersLive } from "@/env";
 import { usingDurableStore } from "@/lib/store";
 
 /**
@@ -56,9 +56,13 @@ export async function GET() {
     storage: durable ? "redis" : "file",
     demoMode: demo,
     oauthConfigured: Boolean(env.OAUTH_CLIENT_ID && env.OAUTH_CLIENT_SECRET && env.OAUTH_REDIRECT_URI),
-    // Optional: without it the reminder card offers the calendar feed only.
-    pushConfigured: pushConfigured(),
-    cronConfigured: Boolean(env.CRON_SECRET),
+    // Reminders show as "coming soon" to creators until all three are true.
+    reminders: {
+      live: remindersLive(),
+      pushConfigured: pushConfigured(),
+      cronConfigured: Boolean(env.CRON_SECRET),
+      enabled: env.REMINDERS_ENABLED === true,
+    },
     ready: warnings.length === 0,
     warnings,
   });

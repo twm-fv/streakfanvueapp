@@ -138,10 +138,12 @@ Work through [APP_STORE.md](./APP_STORE.md). The short version:
   read-only and what it stores; that is what a reviewer checks against the
   scopes you requested.
 
-## Step 7 — Reminders (optional, 10 min)
+## Step 7 — Reminders (optional, 15 min)
 
-The calendar feed works as soon as a creator turns reminders on: nothing to
-configure. Web Push notifications need four more variables and an hourly cron.
+Creators see **Reminders — Coming soon** until you switch this on. Once on, a
+creator flips one switch, accepts the browser's notification prompt, and gets a
+nudge on their usual posting days an hour before their usual posting time.
+Nothing for them to configure.
 
 1. Generate a VAPID key pair once, on your laptop:
 
@@ -155,22 +157,10 @@ configure. Web Push notifications need four more variables and an hourly cron.
    node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
    ```
 
-3. Add to Vercel and redeploy:
-
-   | Variable | Value |
-   | --- | --- |
-   | `VAPID_PUBLIC_KEY` | From step 1 |
-   | `VAPID_PRIVATE_KEY` | From step 1 |
-   | `VAPID_SUBJECT` | `mailto:` your support address |
-   | `CRON_SECRET` | From step 2 |
-
-   `/api/health` reports `pushConfigured: true` once they have landed.
-
-4. The cron. `vercel.json` schedules `/api/cron/nudge` hourly and Vercel sends
-   `CRON_SECRET` as a Bearer token automatically. **On the Hobby plan Vercel
-   runs crons at most once a day**, which cannot hit each creator's chosen hour.
-   Either use the Pro plan, or trigger it hourly from anywhere else, for example
-   a GitHub Actions schedule:
+3. Arrange an **hourly** trigger for `/api/cron/nudge`. `vercel.json` already
+   schedules it, but **the Hobby plan runs crons at most once a day**, which
+   cannot hit each creator's chosen hour. Either move to Pro, or trigger it from
+   GitHub Actions for free:
 
    ```yaml
    # .github/workflows/nudge.yml
@@ -185,11 +175,24 @@ configure. Web Push notifications need four more variables and an hourly cron.
              https://showreel-three.vercel.app/api/cron/nudge
    ```
 
-   The endpoint is idempotent per creator per day, so overlapping triggers are
-   harmless.
+   Add `CRON_SECRET` as a repository secret. The endpoint is idempotent per
+   creator per day, so an overlapping Vercel cron is harmless.
+
+4. Add to Vercel and redeploy:
+
+   | Variable | Value |
+   | --- | --- |
+   | `VAPID_PUBLIC_KEY` | From step 1 |
+   | `VAPID_PRIVATE_KEY` | From step 1 |
+   | `VAPID_SUBJECT` | `mailto:` your support address |
+   | `CRON_SECRET` | From step 2 |
+   | `REMINDERS_ENABLED` | `true`, only once step 3 is in place |
+
+   `/api/health` reports `reminders.live: true` when everything is present, and
+   the Coming soon label disappears for creators.
 
 What the reminder says is written from what the dashboard last computed while
-the creator was looking at it. No Fanvue call happens in the cron, by design.
+the creator was looking at it. The cron makes no Fanvue API call, by design.
 
 ## Operating it afterwards
 

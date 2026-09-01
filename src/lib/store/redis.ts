@@ -19,8 +19,6 @@ export class RedisStore implements Store {
   private userSessionsKey = (userId: string) => `streak:user-sessions:${userId}`;
   /** Index of creators with reminders on, so the hourly sender never scans the keyspace. */
   private nudgeIndexKey = "streak:nudge-users";
-  /** Calendar token -> user id, so a feed request is one lookup. */
-  private calendarKey = (token: string) => `streak:calendar:${token}`;
 
   async getSession(sid: string): Promise<StoredSession | null> {
     return (await this.redis.get<StoredSession>(this.sessionKey(sid))) ?? null;
@@ -44,21 +42,14 @@ export class RedisStore implements Store {
   }
 
   async putUserState(state: UserState): Promise<void> {
-    const previous = await this.getUserState(state.userId);
     // No TTL: this is the creator's own record and outlives any one session.
     await this.redis.set(this.userKey(state.userId), {
       ...state,
       updatedAt: new Date().toISOString(),
     });
-    // Keep the secondary indexes in step with the record.
+    // Keep the sender's index in step with the record.
     if (state.nudge?.enabled) await this.redis.sadd(this.nudgeIndexKey, state.userId);
     else await this.redis.srem(this.nudgeIndexKey, state.userId);
-    if (previous?.calendarToken && previous.calendarToken !== state.calendarToken) {
-      await this.redis.del(this.calendarKey(previous.calendarToken));
-    }
-    if (state.calendarToken) {
-      await this.redis.set(this.calendarKey(state.calendarToken), state.userId);
-    }
   }
 
   async listNudgeUsers(): Promise<UserState[]> {
@@ -68,19 +59,12 @@ export class RedisStore implements Store {
     return states.filter((s): s is UserState => s !== null && Boolean(s.nudge?.enabled));
   }
 
-  async findUserByCalendarToken(token: string): Promise<UserState | null> {
-    const userId = await this.redis.get<string>(this.calendarKey(token));
-    return userId ? this.getUserState(userId) : null;
-  }
-
   async deleteUser(userId: string): Promise<void> {
-    const state = await this.getUserState(userId);
     const sids = await this.redis.smembers(this.userSessionsKey(userId));
     const keys = [
       this.userKey(userId),
       this.userSessionsKey(userId),
       ...sids.map((sid) => this.sessionKey(sid)),
-      ...(state?.calendarToken ? [this.calendarKey(state.calendarToken)] : []),
     ];
     await this.redis.del(...keys);
     await this.redis.srem(this.nudgeIndexKey, userId);

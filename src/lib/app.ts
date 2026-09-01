@@ -1,4 +1,4 @@
-import { env, isDemoMode, pushConfigured } from "@/env";
+import { env, isDemoMode, remindersLive } from "@/env";
 import { getActiveSession } from "@/lib/session";
 import { DemoSource } from "@/lib/fanvue/demo";
 import { FanvueSource } from "@/lib/fanvue/source";
@@ -71,11 +71,9 @@ export async function getUserState(viewer: Viewer): Promise<UserState> {
 }
 
 export type ReminderInfo = {
-  /** True when this deployment can send Web Push. */
-  pushEnabled: boolean;
+  /** False until the operator has push keys, a cron secret and an hourly trigger. */
+  live: boolean;
   vapidPublicKey: string | null;
-  /** Path of the private calendar feed, once reminders have been switched on. */
-  calendarPath: string | null;
   deviceCount: number;
   /** The hour the creator naturally posts, derived from their history. */
   suggestedHour: number | null;
@@ -116,6 +114,7 @@ export async function buildDashboard(viewer: Viewer): Promise<DashboardData> {
     earningsAvailable: window.earningsAvailable,
     currency: window.currency,
     timezone: state.timezone,
+    remindersLive: remindersLive(),
     now,
   });
 
@@ -154,9 +153,8 @@ export async function buildDashboard(viewer: Viewer): Promise<DashboardData> {
     state,
     insights,
     reminders: {
-      pushEnabled: pushConfigured(),
-      vapidPublicKey: pushConfigured() ? env.VAPID_PUBLIC_KEY! : null,
-      calendarPath: state.calendarToken ? `/api/calendar/${state.calendarToken}.ics` : null,
+      live: remindersLive(),
+      vapidPublicKey: remindersLive() ? env.VAPID_PUBLIC_KEY! : null,
       deviceCount: state.pushSubscriptions?.length ?? 0,
       suggestedHour: peakPostingHour(window.postingHours),
       suggestedDays: summary.cadence.topDays,

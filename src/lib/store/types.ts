@@ -9,6 +9,11 @@ export type NudgePrefs = {
   hour: number;
   /** Local calendar date of the last reminder sent, so one fires per day at most. */
   lastSentOn?: string;
+  /**
+   * True once the creator has touched days or time themselves. Until then the
+   * schedule follows their posting history automatically.
+   */
+  customised?: boolean;
 };
 
 /** A browser push subscription, exactly as the Push API hands it over. */
@@ -53,8 +58,6 @@ export type UserState = {
    */
   timezoneChosen?: boolean;
   pushSubscriptions?: PushSubscriptionRecord[];
-  /** Capability token for the private calendar feed. Regenerable. */
-  calendarToken?: string;
   lastSeen?: LastSeen;
   createdAt: string;
   updatedAt: string;
@@ -82,8 +85,6 @@ export interface Store {
   deleteUser(userId: string): Promise<void>;
   /** Creators with reminders switched on, for the hourly sender. */
   listNudgeUsers(): Promise<UserState[]>;
-  /** Resolves a calendar feed token to its owner, or null. */
-  findUserByCalendarToken(token: string): Promise<UserState | null>;
 }
 
 export const MAX_FREEZES_PER_MONTH = 3;

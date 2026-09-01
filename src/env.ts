@@ -56,6 +56,15 @@ export const env = createEnv({
     VAPID_SUBJECT: z.string().min(1).optional(),
     /** Shared secret the hourly cron presents. Vercel sends it as a Bearer token. */
     CRON_SECRET: z.string().min(16).optional(),
+    /**
+     * The operator's switch. Reminders show as "coming soon" until this is true,
+     * because a reminder that arrives at the wrong hour is worse than none: set
+     * it only once an HOURLY trigger for /api/cron/nudge is in place.
+     */
+    REMINDERS_ENABLED: z
+      .string()
+      .optional()
+      .transform((v) => v === "true" || v === "1"),
 
     /** Days of history to pull and analyse. */
     HISTORY_DAYS: z.coerce.number().int().min(30).max(730).default(140),
@@ -84,6 +93,7 @@ export const env = createEnv({
     VAPID_PRIVATE_KEY: process.env.VAPID_PRIVATE_KEY,
     VAPID_SUBJECT: process.env.VAPID_SUBJECT,
     CRON_SECRET: process.env.CRON_SECRET,
+    REMINDERS_ENABLED: process.env.REMINDERS_ENABLED,
   },
   emptyStringAsUndefined: true,
 });
@@ -120,6 +130,9 @@ export function requireOAuthConfig(): OAuthConfig {
 
 export const isDemoMode = () => env.DEMO_MODE === true;
 
-/** Web Push is optional: without keys the reminder card offers the calendar feed only. */
 export const pushConfigured = () =>
   Boolean(env.VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY && env.VAPID_SUBJECT);
+
+/** Creators see a working one-tap reminder only when every piece is in place. */
+export const remindersLive = () =>
+  Boolean(env.REMINDERS_ENABLED && pushConfigured() && env.CRON_SECRET);

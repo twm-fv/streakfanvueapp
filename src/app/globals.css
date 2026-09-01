@@ -343,15 +343,16 @@ footer a { color: var(--muted); }
 }
 .link-btn:hover { text-decoration: underline; }
 .inline-link { display: inline; }
-.delivery {
-  display: flex; justify-content: space-between; align-items: center; gap: 12px;
-  padding: 12px 0; border-top: 1px solid var(--border); font-size: 13px;
+.pill {
+  font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+  background: var(--purple-pale); color: var(--purple); padding: 4px 10px; border-radius: 999px;
 }
-.delivery b { display: block; margin-bottom: 2px; }
-.as-link {
-  text-decoration: none; display: inline-block; padding: 9px 16px; border-radius: 10px;
-  font-weight: 600; font-size: 13px; white-space: nowrap;
+.adjust { margin-top: 10px; }
+.adjust summary {
+  cursor: pointer; font-size: 13px; font-weight: 600; color: var(--purple);
+  list-style: none; user-select: none;
 }
-.delivery .inline { flex-wrap: nowrap; }
-.delivery button { white-space: nowrap; }
+.adjust summary::-webkit-details-marker { display: none; }
+.adjust summary::after { content: " ▾"; font-size: 11px; }
+.adjust[open] summary::after { content: " ▴"; }
 .tiny { font-size: 12px; }

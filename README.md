@@ -19,7 +19,7 @@ does: through OAuth, with scopes the creator approves and can revoke.
 | Consistency vs earnings | Weekly posts against weekly earnings, and the measured uplift | `read:insights` |
 | Comeback tracker | How fast the creator returns after a break | `read:post` |
 | Insights | Ranked, sample-guarded observations: streak at risk with the deadline, best-earning weekdays, posts-to-target this week, momentum, natural posting hour | `read:post`, some need `read:insights` |
-| Reminders | Web Push at the chosen hour on chosen days, plus a private calendar feed; defaults derived from the creator's own posting hour and days | — |
+| Reminders | One-tap Web Push, scheduled from the creator's own posting hour and days. Shows as "Coming soon" until the operator enables it | — |
 
 Every panel degrades on its own. Decline `read:insights` and the earnings panel
 switches itself off; the rest still works.
@@ -99,8 +99,10 @@ cover.
 - **Reminders never touch Fanvue in the background.** The hourly sender writes
   each reminder from what the dashboard last computed while the creator was
   present (`lastSeen`), so the app holds no live session to anyone's account
-  while they are away. That is a deliberate trust boundary, not a gap. Web Push
-  needs VAPID keys and `CRON_SECRET`; the calendar feed needs nothing.
+  while they are away. That is a deliberate trust boundary, not a gap.
+  Reminders stay "Coming soon" for creators until `REMINDERS_ENABLED=true`,
+  which you set only once VAPID keys, `CRON_SECRET` and an hourly trigger are
+  all in place; see DEPLOY.md step 7.
 - **Endpoint paths.** `API_POSTS_PATH` and `API_INSIGHTS_EARNINGS_PATH` are
   configurable so a docs change does not require a code change. Verify them
   against the current [Fanvue API docs](https://api.fanvue.com/docs/welcome)

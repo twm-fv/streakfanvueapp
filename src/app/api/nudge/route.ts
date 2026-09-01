@@ -4,7 +4,7 @@ import { getViewer, getUserState } from "@/lib/app";
 import { getStore } from "@/lib/store";
 import { isSameOrigin, jsonError, rateLimit } from "@/lib/http";
 import { isValidTimezone } from "@/lib/streak/dates";
-import { randomId } from "@/lib/crypto";
+import { remindersLive } from "@/env";
 
 const bodySchema = z.object({
   enabled: z.boolean().optional(),
@@ -12,12 +12,13 @@ const bodySchema = z.object({
   hour: z.number().int().min(0).max(23).optional(),
   /** IANA name. Setting it marks the timezone as chosen by the creator. */
   timezone: z.string().min(1).max(64).optional(),
-  /** Issue a new calendar feed URL and retire the old one. */
-  rotateCalendar: z.boolean().optional(),
+  /** True when the creator changed days or time by hand, so auto-defaults stop. */
+  customised: z.boolean().optional(),
 });
 
 export async function PUT(request: Request) {
   if (!isSameOrigin(request)) return jsonError(403, "Cross-origin request rejected");
+  if (!remindersLive()) return jsonError(503, "Reminders are not available on this deployment yet");
 
   const viewer = await getViewer();
   if (!viewer) return jsonError(401, "Not connected");
@@ -37,6 +38,7 @@ export async function PUT(request: Request) {
     enabled: body.enabled ?? state.nudge.enabled,
     days: body.days ?? state.nudge.days,
     hour: body.hour ?? state.nudge.hour,
+    customised: state.nudge.customised || body.customised === true,
   };
 
   const next = {
@@ -44,21 +46,10 @@ export async function PUT(request: Request) {
     nudge,
     timezone: body.timezone ?? state.timezone,
     timezoneChosen: state.timezoneChosen || body.timezone !== undefined,
-    // The feed URL exists from the moment reminders are on, so it can be
-    // subscribed to straight away.
-    calendarToken:
-      body.rotateCalendar || (nudge.enabled && !state.calendarToken)
-        ? randomId(24)
-        : state.calendarToken,
   };
 
   await getStore().putUserState(next);
-  return NextResponse.json({
-    ok: true,
-    nudge,
-    timezone: next.timezone,
-    calendarPath: next.calendarToken ? `/api/calendar/${next.calendarToken}.ics` : null,
-  });
+  return NextResponse.json({ ok: true, nudge, timezone: next.timezone });
 }
 
 export const dynamic = "force-dynamic";
