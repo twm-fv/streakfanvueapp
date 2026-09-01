@@ -11,7 +11,7 @@
     </linearGradient>
   </defs>
   <rect width="1024" height="1024" rx="224" fill="url(#tile)"/>
-  <g transform="translate(512 512) scale(0.86) translate(-512 -478)">
+  <g transform="translate(512 430) scale(0.74) translate(-512 -478)">
     <path fill="url(#flame)" d="
       M512 130
       C 496 246 424 280 404 378
@@ -30,5 +30,11 @@
       C 546 744 573 700 573 636
       C 573 590 551 546 512 470
       Z"/>
+  </g>
+  <g fill="#FFFFFF">
+    <rect x="274" y="770" width="104" height="104" rx="30" opacity="0.32"/>
+    <rect x="398" y="770" width="104" height="104" rx="30" opacity="0.55"/>
+    <rect x="522" y="770" width="104" height="104" rx="30" opacity="0.78"/>
+    <rect x="646" y="770" width="104" height="104" rx="30" opacity="1"/>
   </g>
 </svg>

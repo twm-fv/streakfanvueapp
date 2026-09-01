@@ -31,7 +31,8 @@ export default async function Home({
     <div className="wrap">
       <header className="top">
         <div className="brand">
-          <div className="logo">S</div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img className="logo" src="/logo.svg" alt="" width={34} height={34} />
           <div>
             <h1>Streak</h1>
             <span>A habit tracker for Fanvue creators</span>

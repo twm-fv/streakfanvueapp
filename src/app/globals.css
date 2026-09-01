@@ -39,6 +39,8 @@ header.top {
   display: flex; align-items: center; justify-content: center;
   color: #fff; font-weight: 700; font-size: 15px;
 }
+/* The mark carries its own rounded tile, so it needs no background behind it. */
+img.logo { background: none; border-radius: 0; }
 .brand h1 { font-size: 18px; margin: 0; font-weight: 700; }
 .brand span { color: var(--muted); font-size: 13px; display: block; margin-top: 2px; }
 
