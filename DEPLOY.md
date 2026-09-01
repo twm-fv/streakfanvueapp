@@ -32,7 +32,7 @@ with a volume, a container with storage). The file store works fine there.
 Vercel is the path of least resistance for a Next.js app.
 
 1. [vercel.com](https://vercel.com) → **Add New → Project** → import
-   `twm-fv/showreel`.
+   `twm-fv/streakfanvueapp`.
 2. Set the production branch to `claude/fanvue-third-party-app-store-e9pimw`
    (or merge it to `main` first and use that).
 3. Framework preset: **Next.js**. Build settings need no changes.
