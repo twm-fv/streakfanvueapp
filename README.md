@@ -69,7 +69,7 @@ src/
     session.ts            Opaque session ids; tokens stay server side
     crypto.ts             HKDF key derivation, AES-256-GCM for tokens at rest
     http.ts               Same-origin checks, rate limiting, error shapes
-    store/                Store interface + file-backed implementation
+    store/                Store interface, file and Redis implementations
     fanvue/
       client.ts           Authenticated HTTP with retry and backoff
       source.ts           Fanvue API -> normalised daily activity
@@ -87,10 +87,12 @@ cover.
 
 ## Production notes
 
-- **Storage.** The default `FileStore` is fine for local development and a
-  single instance. For anything else, implement the `Store` interface in
-  `src/lib/store/types.ts` against your database and return it from
-  `getStore()`. Nothing else changes.
+- **Storage.** Set `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` and
+  the app uses Redis; leave them unset and it uses the file store. Serverless
+  hosts **require** Redis, because their filesystem is read-only and
+  per-instance. To use another database, implement the `Store` interface in
+  `src/lib/store/types.ts` and return it from `getStore()`; the contract tests
+  in `src/lib/store/store.test.ts` define what it must do.
 - **Rate limiting.** `rateLimit()` is in-process. Back it with shared storage if
   you run more than one instance.
 - **Reminders.** The nudge preference is stored and shown, but delivery is not
@@ -110,5 +112,6 @@ pnpm typecheck
 pnpm lint
 ```
 
-See [SECURITY.md](./SECURITY.md) for the security model and
+See [DEPLOY.md](./DEPLOY.md) to get it live and connected to a real account,
+[SECURITY.md](./SECURITY.md) for the security model, and
 [APP_STORE.md](./APP_STORE.md) for the submission checklist.

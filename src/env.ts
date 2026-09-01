@@ -35,8 +35,14 @@ export const env = createEnv({
     SESSION_SECRET: z.string().min(32, {
       message: "SESSION_SECRET must be at least 32 characters",
     }),
-    /** Where the file-backed store writes. Swap the store for a database in production. */
+    /** Where the file-backed store writes, when Redis is not configured. */
     DATA_DIR: z.string().default(".data"),
+    /**
+     * Set both to use Redis instead of the file store. Required for serverless
+     * hosting, where the filesystem is read-only and per-instance.
+     */
+    UPSTASH_REDIS_REST_URL: z.url().optional(),
+    UPSTASH_REDIS_REST_TOKEN: z.string().min(1).optional(),
     DEMO_MODE: z
       .string()
       .optional()
@@ -60,6 +66,8 @@ export const env = createEnv({
     SESSION_COOKIE_NAME: process.env.SESSION_COOKIE_NAME,
     SESSION_SECRET: process.env.SESSION_SECRET,
     DATA_DIR: process.env.DATA_DIR,
+    UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL,
+    UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
     DEMO_MODE: process.env.DEMO_MODE,
     HISTORY_DAYS: process.env.HISTORY_DAYS,
   },

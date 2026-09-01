@@ -29,6 +29,10 @@ left for you to do before submitting.
 | User-initiated data deletion | `/api/account` DELETE, surfaced as "Delete my data" |
 | Graceful handling of rate limits | Retry with backoff honouring `Retry-After` in `src/lib/fanvue/client.ts` |
 
+> Getting from code to a live, connected deployment is covered step by step in
+> [DEPLOY.md](./DEPLOY.md). Do that first — most of the rows below are verified
+> by actually connecting an account.
+
 ## Before you submit
 
 1. **Register the app.** Fanvue Developer Area, on a creator account with KYC
@@ -46,7 +50,8 @@ left for you to do before submitting.
    Run against a real account and check the heatmap and earnings panels populate
    before submitting.
 6. **Move the secret into a secrets manager** and set a rotation plan.
-7. **Replace the store** if you deploy more than one instance. See README.
+7. **Configure Redis** (`UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`).
+   Required on any serverless host; `/api/health` reports which store is live.
 8. **Turn `DEMO_MODE` off.**
 9. **Host the legal pages** at stable public URLs and use those in the listing.
 10. **Prepare listing assets**: icon, screenshots, short and long description.

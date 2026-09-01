@@ -9,7 +9,8 @@ import { NextResponse, type NextRequest } from "next/server";
  * API call is made server side with a token the page never sees.
  */
 export function middleware(request: NextRequest) {
-  const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
+  // btoa, not Buffer: middleware runs on the Edge runtime on most hosts.
+  const nonce = btoa(crypto.randomUUID());
   const dev = process.env.NODE_ENV !== "production";
 
   const csp = [
